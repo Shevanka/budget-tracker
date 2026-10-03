@@ -85,4 +85,22 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
       batch.insertAll(categories, entries, mode: InsertMode.insertOrIgnore);
     });
   }
+
+  /// Counts total categories (including soft-deleted).
+  Future<int> countTotalCategories() async {
+    final countExp = categories.id.count();
+    final query = selectOnly(categories)..addColumns([countExp]);
+    final result = await query.map((row) => row.read(countExp)).getSingle();
+    return result ?? 0;
+  }
+
+  /// Seeds default categories if no categories exist in the database.
+  Future<void> seedDefaultCategoriesIfEmpty({
+    List<CategoriesCompanion>? defaultEntries,
+  }) async {
+    final total = await countTotalCategories();
+    if (total == 0 && defaultEntries != null && defaultEntries.isNotEmpty) {
+      await seedCategories(defaultEntries);
+    }
+  }
 }
