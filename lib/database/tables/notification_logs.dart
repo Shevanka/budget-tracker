@@ -5,7 +5,7 @@ import 'transactions.dart';
 @TableIndex(name: 'idx_notification_logs_received_at', columns: {#receivedAt})
 class NotificationLogs extends Table {
   TextColumn get id => text()();
-  TextColumn get appPackage => text().nullable()();
+  TextColumn get appPackage => text()();
   TextColumn get title => text().nullable()();
   TextColumn get body => text().nullable()();
   DateTimeColumn get receivedAt => dateTime()();

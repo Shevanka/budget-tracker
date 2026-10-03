@@ -240,6 +240,38 @@ void main() {
       expect(recent.first.id, 'tx-7');
       expect(recent.last.id, 'tx-3');
     });
+
+    test('rejects non-positive amount (amount <= 0) via CHECK constraint', () async {
+      expect(
+        () => db.transactionDao.insertTransaction(
+          TransactionsCompanion(
+            id: const drift.Value('tx-zero'),
+            amount: const drift.Value(0),
+            type: const drift.Value(TransactionType.expense),
+            categoryId: const drift.Value('cat-food'),
+            source: const drift.Value('Cash'),
+            date: drift.Value(DateTime.utc(2026, 10, 1)),
+            createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+          ),
+        ),
+        throwsA(isA<Exception>()),
+      );
+
+      expect(
+        () => db.transactionDao.insertTransaction(
+          TransactionsCompanion(
+            id: const drift.Value('tx-neg'),
+            amount: const drift.Value(-50000),
+            type: const drift.Value(TransactionType.expense),
+            categoryId: const drift.Value('cat-food'),
+            source: const drift.Value('Cash'),
+            date: drift.Value(DateTime.utc(2026, 10, 1)),
+            createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+          ),
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 
   group('BudgetDao', () {
@@ -357,6 +389,43 @@ void main() {
             createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
           ),
           [],
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('rejects negative totalLimit via CHECK constraint', () async {
+      expect(
+        () => db.budgetDao.insertBudgetWithCategories(
+          BudgetsCompanion(
+            id: const drift.Value('b-neg'),
+            yearMonth: const drift.Value('2026-12'),
+            totalLimit: const drift.Value(-100000),
+            createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+          ),
+          [],
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('rejects negative category limitAmount via CHECK constraint', () async {
+      expect(
+        () => db.budgetDao.insertBudgetWithCategories(
+          BudgetsCompanion(
+            id: const drift.Value('b-valid'),
+            yearMonth: const drift.Value('2026-12'),
+            totalLimit: const drift.Value(500000),
+            createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+          ),
+          [
+            const BudgetCategoriesCompanion(
+              id: drift.Value('bc-neg'),
+              budgetId: drift.Value('b-valid'),
+              categoryId: drift.Value('cat-food'),
+              limitAmount: drift.Value(-50000),
+            ),
+          ],
         ),
         throwsA(isA<Exception>()),
       );

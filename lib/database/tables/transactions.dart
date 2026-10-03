@@ -19,4 +19,7 @@ class Transactions extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => ['CHECK (amount > 0)'];
 }

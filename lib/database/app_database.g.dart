@@ -1732,9 +1732,9 @@ class $NotificationLogsTable extends NotificationLogs
   late final GeneratedColumn<String> appPackage = GeneratedColumn<String>(
     'app_package',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
+    requiredDuringInsert: true,
   );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
@@ -1824,6 +1824,8 @@ class $NotificationLogsTable extends NotificationLogs
         _appPackageMeta,
         appPackage.isAcceptableOrUnknown(data['app_package']!, _appPackageMeta),
       );
+    } else if (isInserting) {
+      context.missing(_appPackageMeta);
     }
     if (data.containsKey('title')) {
       context.handle(
@@ -1876,7 +1878,7 @@ class $NotificationLogsTable extends NotificationLogs
       appPackage: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}app_package'],
-      ),
+      )!,
       title: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}title'],
@@ -1908,7 +1910,7 @@ class $NotificationLogsTable extends NotificationLogs
 
 class NotificationLog extends DataClass implements Insertable<NotificationLog> {
   final String id;
-  final String? appPackage;
+  final String appPackage;
   final String? title;
   final String? body;
   final DateTime receivedAt;
@@ -1916,7 +1918,7 @@ class NotificationLog extends DataClass implements Insertable<NotificationLog> {
   final String? transactionId;
   const NotificationLog({
     required this.id,
-    this.appPackage,
+    required this.appPackage,
     this.title,
     this.body,
     required this.receivedAt,
@@ -1927,9 +1929,7 @@ class NotificationLog extends DataClass implements Insertable<NotificationLog> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    if (!nullToAbsent || appPackage != null) {
-      map['app_package'] = Variable<String>(appPackage);
-    }
+    map['app_package'] = Variable<String>(appPackage);
     if (!nullToAbsent || title != null) {
       map['title'] = Variable<String>(title);
     }
@@ -1947,9 +1947,7 @@ class NotificationLog extends DataClass implements Insertable<NotificationLog> {
   NotificationLogsCompanion toCompanion(bool nullToAbsent) {
     return NotificationLogsCompanion(
       id: Value(id),
-      appPackage: appPackage == null && nullToAbsent
-          ? const Value.absent()
-          : Value(appPackage),
+      appPackage: Value(appPackage),
       title: title == null && nullToAbsent
           ? const Value.absent()
           : Value(title),
@@ -1969,7 +1967,7 @@ class NotificationLog extends DataClass implements Insertable<NotificationLog> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return NotificationLog(
       id: serializer.fromJson<String>(json['id']),
-      appPackage: serializer.fromJson<String?>(json['appPackage']),
+      appPackage: serializer.fromJson<String>(json['appPackage']),
       title: serializer.fromJson<String?>(json['title']),
       body: serializer.fromJson<String?>(json['body']),
       receivedAt: serializer.fromJson<DateTime>(json['receivedAt']),
@@ -1982,7 +1980,7 @@ class NotificationLog extends DataClass implements Insertable<NotificationLog> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'appPackage': serializer.toJson<String?>(appPackage),
+      'appPackage': serializer.toJson<String>(appPackage),
       'title': serializer.toJson<String?>(title),
       'body': serializer.toJson<String?>(body),
       'receivedAt': serializer.toJson<DateTime>(receivedAt),
@@ -1993,7 +1991,7 @@ class NotificationLog extends DataClass implements Insertable<NotificationLog> {
 
   NotificationLog copyWith({
     String? id,
-    Value<String?> appPackage = const Value.absent(),
+    String? appPackage,
     Value<String?> title = const Value.absent(),
     Value<String?> body = const Value.absent(),
     DateTime? receivedAt,
@@ -2001,7 +1999,7 @@ class NotificationLog extends DataClass implements Insertable<NotificationLog> {
     Value<String?> transactionId = const Value.absent(),
   }) => NotificationLog(
     id: id ?? this.id,
-    appPackage: appPackage.present ? appPackage.value : this.appPackage,
+    appPackage: appPackage ?? this.appPackage,
     title: title.present ? title.value : this.title,
     body: body.present ? body.value : this.body,
     receivedAt: receivedAt ?? this.receivedAt,
@@ -2067,7 +2065,7 @@ class NotificationLog extends DataClass implements Insertable<NotificationLog> {
 
 class NotificationLogsCompanion extends UpdateCompanion<NotificationLog> {
   final Value<String> id;
-  final Value<String?> appPackage;
+  final Value<String> appPackage;
   final Value<String?> title;
   final Value<String?> body;
   final Value<DateTime> receivedAt;
@@ -2086,7 +2084,7 @@ class NotificationLogsCompanion extends UpdateCompanion<NotificationLog> {
   });
   NotificationLogsCompanion.insert({
     required String id,
-    this.appPackage = const Value.absent(),
+    required String appPackage,
     this.title = const Value.absent(),
     this.body = const Value.absent(),
     required DateTime receivedAt,
@@ -2094,6 +2092,7 @@ class NotificationLogsCompanion extends UpdateCompanion<NotificationLog> {
     this.transactionId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
+       appPackage = Value(appPackage),
        receivedAt = Value(receivedAt);
   static Insertable<NotificationLog> custom({
     Expression<String>? id,
@@ -2119,7 +2118,7 @@ class NotificationLogsCompanion extends UpdateCompanion<NotificationLog> {
 
   NotificationLogsCompanion copyWith({
     Value<String>? id,
-    Value<String?>? appPackage,
+    Value<String>? appPackage,
     Value<String?>? title,
     Value<String?>? body,
     Value<DateTime>? receivedAt,
@@ -3887,7 +3886,7 @@ typedef $$BudgetCategoriesTableProcessedTableManager =
 typedef $$NotificationLogsTableCreateCompanionBuilder =
     NotificationLogsCompanion Function({
       required String id,
-      Value<String?> appPackage,
+      required String appPackage,
       Value<String?> title,
       Value<String?> body,
       required DateTime receivedAt,
@@ -3898,7 +3897,7 @@ typedef $$NotificationLogsTableCreateCompanionBuilder =
 typedef $$NotificationLogsTableUpdateCompanionBuilder =
     NotificationLogsCompanion Function({
       Value<String> id,
-      Value<String?> appPackage,
+      Value<String> appPackage,
       Value<String?> title,
       Value<String?> body,
       Value<DateTime> receivedAt,
@@ -4151,7 +4150,7 @@ class $$NotificationLogsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<String?> appPackage = const Value.absent(),
+                Value<String> appPackage = const Value.absent(),
                 Value<String?> title = const Value.absent(),
                 Value<String?> body = const Value.absent(),
                 Value<DateTime> receivedAt = const Value.absent(),
@@ -4171,7 +4170,7 @@ class $$NotificationLogsTableTableManager
           createCompanionCallback:
               ({
                 required String id,
-                Value<String?> appPackage = const Value.absent(),
+                required String appPackage,
                 Value<String?> title = const Value.absent(),
                 Value<String?> body = const Value.absent(),
                 required DateTime receivedAt,

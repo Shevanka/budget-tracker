@@ -10,4 +10,7 @@ class Budgets extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => ['CHECK (total_limit >= 0)'];
 }

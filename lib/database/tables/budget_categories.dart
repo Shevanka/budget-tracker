@@ -17,4 +17,7 @@ class BudgetCategories extends Table {
   List<Set<Column>> get uniqueKeys => [
         {budgetId, categoryId},
       ];
+
+  @override
+  List<String> get customConstraints => ['CHECK (limit_amount >= 0)'];
 }
