@@ -50,14 +50,23 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
         .getSingleOrNull();
   }
 
-  /// Inserts a new category.
-  Future<int> insertCategory(CategoriesCompanion entry) {
-    return into(categories).insert(entry);
+  /// Normalizes DateTime fields in [entry] to UTC.
+  CategoriesCompanion _normalizeUtc(CategoriesCompanion entry) {
+    return entry.copyWith(
+      createdAt: entry.createdAt.present
+          ? Value(entry.createdAt.value.toUtc())
+          : const Value.absent(),
+    );
   }
 
-  /// Updates an existing category.
+  /// Inserts a new category with UTC-normalized createdAt.
+  Future<int> insertCategory(CategoriesCompanion entry) {
+    return into(categories).insert(_normalizeUtc(entry));
+  }
+
+  /// Updates an existing category with UTC-normalized createdAt.
   Future<bool> updateCategory(CategoriesCompanion entry) {
-    return update(categories).replace(entry);
+    return update(categories).replace(_normalizeUtc(entry));
   }
 
   /// Soft deletes a category by setting `isActive = false` to preserve FK references.
@@ -79,10 +88,11 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
     return result ?? 0;
   }
 
-  /// Seeds default categories in batch.
+  /// Seeds default categories in batch with UTC-normalized timestamps.
   Future<void> seedCategories(List<CategoriesCompanion> entries) async {
+    final normalized = entries.map(_normalizeUtc).toList();
     await batch((batch) {
-      batch.insertAll(categories, entries, mode: InsertMode.insertOrIgnore);
+      batch.insertAll(categories, normalized, mode: InsertMode.insertOrIgnore);
     });
   }
 

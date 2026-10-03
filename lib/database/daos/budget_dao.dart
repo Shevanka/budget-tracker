@@ -21,13 +21,22 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
         .watchSingleOrNull();
   }
 
-  /// Inserts a budget and its category limits atomically.
+  /// Normalizes DateTime fields in [budget] to UTC.
+  BudgetsCompanion _normalizeUtc(BudgetsCompanion budget) {
+    return budget.copyWith(
+      createdAt: budget.createdAt.present
+          ? Value(budget.createdAt.value.toUtc())
+          : const Value.absent(),
+    );
+  }
+
+  /// Inserts a budget and its category limits atomically with UTC-normalized createdAt.
   Future<void> insertBudgetWithCategories(
     BudgetsCompanion budget,
     List<BudgetCategoriesCompanion> categoryLimits,
   ) {
     return transaction(() async {
-      await into(budgets).insert(budget);
+      await into(budgets).insert(_normalizeUtc(budget));
       if (categoryLimits.isNotEmpty) {
         await batch((batch) {
           batch.insertAll(budgetCategories, categoryLimits);
@@ -36,13 +45,13 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
     });
   }
 
-  /// Updates a budget and replaces its category limits atomically.
+  /// Updates a budget and replaces its category limits atomically with UTC-normalized createdAt.
   Future<void> updateBudgetWithCategories(
     BudgetsCompanion budget,
     List<BudgetCategoriesCompanion> categoryLimits,
   ) {
     return transaction(() async {
-      await update(budgets).replace(budget);
+      await update(budgets).replace(_normalizeUtc(budget));
       await (delete(budgetCategories)
             ..where((tbl) => tbl.budgetId.equals(budget.id.value)))
           .go();
@@ -93,7 +102,7 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
           id: Value(newBudgetId),
           yearMonth: Value(toYearMonth),
           totalLimit: Value(sourceBudget.totalLimit),
-          createdAt: Value(createdAt),
+          createdAt: Value(createdAt.toUtc()),
         ),
       );
 

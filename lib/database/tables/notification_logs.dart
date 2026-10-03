@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../converters/utc_date_time_converter.dart';
 import 'transactions.dart';
 
 /// Notification logs table to store incoming bank/e-wallet notifications.
@@ -8,7 +9,8 @@ class NotificationLogs extends Table {
   TextColumn get appPackage => text()();
   TextColumn get title => text().nullable()();
   TextColumn get body => text().nullable()();
-  DateTimeColumn get receivedAt => dateTime()();
+  DateTimeColumn get receivedAt =>
+      dateTime().map(const UtcDateTimeConverter())();
   BoolColumn get parsed => boolean().withDefault(const Constant(false))();
   TextColumn get transactionId =>
       text().nullable().references(Transactions, #id)();

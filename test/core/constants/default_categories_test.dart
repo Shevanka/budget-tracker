@@ -29,9 +29,15 @@ void main() {
       final ids = <String>{};
       final sortOrders = <int>{};
 
+      final uuidV4Regex = RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        caseSensitive: false,
+      );
+
       for (int i = 0; i < companions.length; i++) {
         final c = companions[i];
         expect(c.id.present, isTrue);
+        expect(uuidV4Regex.hasMatch(c.id.value), isTrue);
         expect(c.isDefault.value, isTrue);
         expect(c.isActive.value, isTrue);
         expect(c.sortOrder.value, equals(i));

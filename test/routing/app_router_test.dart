@@ -109,5 +109,18 @@ void main() {
       expect(find.text('Edit Transaction'), findsOneWidget);
       expect(find.text('Editing Transaction (tx-123)'), findsOneWidget);
     });
+
+    testWidgets('navigates to Receipt Picker screen', (tester) async {
+      await tester.pumpWidget(createTestApp());
+      await tester.pumpAndSettle();
+
+      final BuildContext context =
+          tester.element(find.byType(DashboardScreen));
+      context.push(AppRoute.receiptPicker.path);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Scan Receipt'), findsOneWidget);
+      expect(find.text('Receipt Scanner'), findsOneWidget);
+    });
   });
 }

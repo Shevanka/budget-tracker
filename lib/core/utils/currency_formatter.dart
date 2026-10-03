@@ -53,26 +53,68 @@ abstract final class CurrencyFormatter {
     return fixed.replaceAll('.', ',');
   }
 
-  /// Parses a string representation of IDR into an integer.
-  /// Strips currency symbols, dots, commas, and whitespace.
-  /// Returns `null` if the input contains no valid digits.
+  /// Parses a string representation of IDR into an integer (whole rupiah).
+  ///
+  /// Supported formats:
+  /// - Unformatted digits: `50000`, `0`
+  /// - Grouped thousands: `50.000`, `1.500.000` (or `1,500,000`)
+  /// - With currency prefix: `Rp 50.000`, `Rp. 50000`, `IDR 50.000` (case-insensitive)
+  /// - With optional decimal cents: `50.000,00`, `Rp 50.000,00`, `50000.00`
+  /// - Negative amounts: `-Rp 50.000`, `-50.000`
+  ///
+  /// Rejects malformed strings with embedded text or invalid grouping (e.g. `Order 123 Rp 500`, `abc`).
+  /// Returns `null` if the input is not a valid currency string.
   static int? tryParse(String? input) {
-    if (input == null || input.trim().isEmpty) {
+    if (input == null) return null;
+    var str = input.trim();
+    if (str.isEmpty) return null;
+
+    // 1. Detect and strip negative sign
+    var isNegative = false;
+    if (str.startsWith('-')) {
+      isNegative = true;
+      str = str.substring(1).trim();
+    } else if (str.startsWith('(') && str.endsWith(')')) {
+      isNegative = true;
+      str = str.substring(1, str.length - 1).trim();
+    }
+
+    // 2. Strip optional currency symbol (Rp, Rp., IDR - case-insensitive)
+    final prefixMatch =
+        RegExp(r'^(?:rp\.?|idr)\s*', caseSensitive: false).firstMatch(str);
+    if (prefixMatch != null) {
+      str = str.substring(prefixMatch.end).trim();
+    }
+
+    if (str.isEmpty) return null;
+
+    // 3. Strip trailing decimal cents:
+    // Indonesian standard decimal is comma: `,00`, `,50`, `,0`
+    // Electronic payment / gateway outputs often have `.00`
+    if (RegExp(r',\d{1,2}$').hasMatch(str)) {
+      str = str.substring(0, str.lastIndexOf(','));
+    } else if (RegExp(r'\.00$').hasMatch(str)) {
+      str = str.substring(0, str.lastIndexOf('.'));
+    }
+
+    if (str.isEmpty) return null;
+
+    // 4. Validate number format:
+    // Format A: Plain digits: e.g. `50000`
+    // Format B: Dot-separated thousands: e.g. `50.000`, `1.500.000`
+    // Format C: Comma-separated thousands: e.g. `50,000`, `1,500,000`
+    final isPlainDigits = RegExp(r'^\d+$').hasMatch(str);
+    final isDotGrouped = RegExp(r'^\d{1,3}(?:\.\d{3})+$').hasMatch(str);
+    final isCommaGrouped = RegExp(r'^\d{1,3}(?:,\d{3})+$').hasMatch(str);
+
+    if (!isPlainDigits && !isDotGrouped && !isCommaGrouped) {
       return null;
     }
 
-    final trimmed = input.trim();
-    final isNegative = trimmed.startsWith('-');
-    final digits = trimmed.replaceAll(RegExp(r'[^\d]'), '');
-
-    if (digits.isEmpty) {
-      return null;
-    }
-
-    final value = int.tryParse(digits);
-    if (value == null) {
-      return null;
-    }
+    // 5. Strip separators and parse
+    final cleanDigits = str.replaceAll('.', '').replaceAll(',', '');
+    final value = int.tryParse(cleanDigits);
+    if (value == null) return null;
 
     return isNegative ? -value : value;
   }

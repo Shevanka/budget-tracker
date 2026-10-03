@@ -9,9 +9,18 @@ class NotificationLogDao extends DatabaseAccessor<AppDatabase>
     with _$NotificationLogDaoMixin {
   NotificationLogDao(super.db);
 
-  /// Inserts a newly intercepted system notification log.
+  /// Normalizes DateTime fields in [entry] to UTC.
+  NotificationLogsCompanion _normalizeUtc(NotificationLogsCompanion entry) {
+    return entry.copyWith(
+      receivedAt: entry.receivedAt.present
+          ? Value(entry.receivedAt.value.toUtc())
+          : const Value.absent(),
+    );
+  }
+
+  /// Inserts a newly intercepted system notification log with UTC-normalized receivedAt.
   Future<int> insertLog(NotificationLogsCompanion entry) {
-    return into(notificationLogs).insert(entry);
+    return into(notificationLogs).insert(_normalizeUtc(entry));
   }
 
   /// Fetches a notification log by id.

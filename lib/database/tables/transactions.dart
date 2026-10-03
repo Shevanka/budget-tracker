@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../converters/transaction_type.dart';
+import '../converters/utc_date_time_converter.dart';
 import 'categories.dart';
 
 /// Transactions table schema.
@@ -12,10 +13,12 @@ class Transactions extends Table {
   TextColumn get type => textEnum<TransactionType>()();
   TextColumn get categoryId => text().references(Categories, #id)();
   TextColumn get source => text()();
-  DateTimeColumn get date => dateTime()();
+  DateTimeColumn get date => dateTime().map(const UtcDateTimeConverter())();
   TextColumn get note => text().nullable()();
-  DateTimeColumn get createdAt => dateTime()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt =>
+      dateTime().map(const UtcDateTimeConverter())();
+  DateTimeColumn get updatedAt =>
+      dateTime().nullable().map(const UtcDateTimeConverter())();
 
   @override
   Set<Column> get primaryKey => {id};

@@ -11,14 +11,29 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
     with _$TransactionDaoMixin {
   TransactionDao(super.db);
 
-  /// Inserts a new transaction.
-  Future<int> insertTransaction(TransactionsCompanion entry) {
-    return into(transactions).insert(entry);
+  /// Normalizes all DateTime fields in [entry] to UTC.
+  TransactionsCompanion _normalizeUtc(TransactionsCompanion entry) {
+    return entry.copyWith(
+      date: entry.date.present
+          ? Value(entry.date.value.toUtc())
+          : const Value.absent(),
+      createdAt: entry.createdAt.present
+          ? Value(entry.createdAt.value.toUtc())
+          : const Value.absent(),
+      updatedAt: entry.updatedAt.present
+          ? Value(entry.updatedAt.value?.toUtc())
+          : const Value.absent(),
+    );
   }
 
-  /// Updates an existing transaction.
+  /// Inserts a new transaction with UTC-normalized dates.
+  Future<int> insertTransaction(TransactionsCompanion entry) {
+    return into(transactions).insert(_normalizeUtc(entry));
+  }
+
+  /// Updates an existing transaction with UTC-normalized dates.
   Future<bool> updateTransaction(TransactionsCompanion entry) {
-    return update(transactions).replace(entry);
+    return update(transactions).replace(_normalizeUtc(entry));
   }
 
   /// Deletes a transaction by id.
@@ -46,15 +61,18 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Streams transactions within a date range (inclusive), ordered by date descending.
+  /// Automatically normalizes [start] and [end] to UTC.
   Stream<List<Transaction>> watchTransactionsByDateRange(
     DateTime start,
     DateTime end,
   ) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
     return (select(transactions)
           ..where(
             (tbl) =>
-                tbl.date.isBiggerOrEqualValue(start) &
-                tbl.date.isSmallerOrEqualValue(end),
+                tbl.date.isBiggerOrEqualValue(startUtc) &
+                tbl.date.isSmallerOrEqualValue(endUtc),
           )
           ..orderBy([
             (tbl) =>
@@ -66,15 +84,18 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Fetches transactions within a date range (inclusive), ordered by date descending.
+  /// Automatically normalizes [start] and [end] to UTC.
   Future<List<Transaction>> getTransactionsByDateRange(
     DateTime start,
     DateTime end,
   ) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
     return (select(transactions)
           ..where(
             (tbl) =>
-                tbl.date.isBiggerOrEqualValue(start) &
-                tbl.date.isSmallerOrEqualValue(end),
+                tbl.date.isBiggerOrEqualValue(startUtc) &
+                tbl.date.isSmallerOrEqualValue(endUtc),
           )
           ..orderBy([
             (tbl) =>
@@ -97,18 +118,21 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Calculates total spent (expense only) for a specific category in a date range.
+  /// Automatically normalizes [start] and [end] to UTC.
   Future<int> getTotalSpentForCategory(
     String categoryId,
     DateTime start,
     DateTime end,
   ) async {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
     final sumExp = transactions.amount.sum();
     final query = selectOnly(transactions)
       ..where(
         transactions.categoryId.equals(categoryId) &
             transactions.type.equalsValue(TransactionType.expense) &
-            transactions.date.isBiggerOrEqualValue(start) &
-            transactions.date.isSmallerOrEqualValue(end),
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
       )
       ..addColumns([sumExp]);
 
@@ -117,13 +141,16 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Calculates total spent (all expenses) in a date range.
+  /// Automatically normalizes [start] and [end] to UTC.
   Future<int> getTotalSpent(DateTime start, DateTime end) async {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
     final sumExp = transactions.amount.sum();
     final query = selectOnly(transactions)
       ..where(
         transactions.type.equalsValue(TransactionType.expense) &
-            transactions.date.isBiggerOrEqualValue(start) &
-            transactions.date.isSmallerOrEqualValue(end),
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
       )
       ..addColumns([sumExp]);
 
@@ -132,13 +159,16 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Calculates total income in a date range.
+  /// Automatically normalizes [start] and [end] to UTC.
   Future<int> getTotalIncome(DateTime start, DateTime end) async {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
     final sumExp = transactions.amount.sum();
     final query = selectOnly(transactions)
       ..where(
         transactions.type.equalsValue(TransactionType.income) &
-            transactions.date.isBiggerOrEqualValue(start) &
-            transactions.date.isSmallerOrEqualValue(end),
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
       )
       ..addColumns([sumExp]);
 

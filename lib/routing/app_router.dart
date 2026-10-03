@@ -7,6 +7,7 @@ import '../features/categories/presentation/screens/category_manager_screen.dart
 import '../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../features/reports/presentation/screens/reports_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
+import '../features/smart_recording/presentation/screens/receipt_picker_screen.dart';
 import '../features/smart_recording/presentation/screens/smart_recording_review_screen.dart';
 import '../features/transactions/presentation/screens/add_edit_transaction_screen.dart';
 import '../features/transactions/presentation/screens/transactions_screen.dart';
@@ -114,6 +115,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoute.smartRecordingReview.path,
         name: AppRoute.smartRecordingReview.name,
         builder: (context, state) => const SmartRecordingReviewScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: AppRoute.receiptPicker.path,
+        name: AppRoute.receiptPicker.name,
+        builder: (context, state) => const ReceiptPickerScreen(),
       ),
     ],
   );

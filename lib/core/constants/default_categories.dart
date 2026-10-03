@@ -5,13 +5,13 @@ import '../../database/app_database.dart';
 
 /// Predefined default categories for the Budget Tracker app.
 abstract final class DefaultCategories {
-  static const String foodId = 'default_cat_food';
-  static const String transportId = 'default_cat_transport';
-  static const String billsId = 'default_cat_bills';
-  static const String shoppingId = 'default_cat_shopping';
-  static const String healthId = 'default_cat_health';
-  static const String entertainmentId = 'default_cat_entertainment';
-  static const String otherId = 'default_cat_other';
+  static const String foodId = 'c1000001-0000-4000-8000-000000000001';
+  static const String transportId = 'c1000002-0000-4000-8000-000000000002';
+  static const String billsId = 'c1000003-0000-4000-8000-000000000003';
+  static const String shoppingId = 'c1000004-0000-4000-8000-000000000004';
+  static const String healthId = 'c1000005-0000-4000-8000-000000000005';
+  static const String entertainmentId = 'c1000006-0000-4000-8000-000000000006';
+  static const String otherId = 'c1000007-0000-4000-8000-000000000007';
 
   static const String foodName = 'Food';
   static const String transportName = 'Transport';

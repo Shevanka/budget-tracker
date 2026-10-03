@@ -272,6 +272,34 @@ void main() {
         throwsA(isA<Exception>()),
       );
     });
+
+    test('enforces UTC normalization at DAO boundary for insert and queries', () async {
+      final localDate = DateTime(2026, 10, 15, 18, 30);
+      expect(localDate.isUtc, isFalse);
+
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-local-tz'),
+          amount: const drift.Value(75000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('BCA'),
+          date: drift.Value(localDate),
+          createdAt: drift.Value(localDate),
+        ),
+      );
+
+      final fetched = await db.transactionDao.getTransactionById('tx-local-tz');
+      expect(fetched, isNotNull);
+      expect(fetched!.date.isUtc, isTrue);
+      expect(fetched.date, equals(localDate.toUtc()));
+      expect(fetched.createdAt.isUtc, isTrue);
+
+      final localStart = DateTime(2026, 10, 15, 0, 0);
+      final localEnd = DateTime(2026, 10, 15, 23, 59, 59);
+      final results = await db.transactionDao.getTransactionsByDateRange(localStart, localEnd);
+      expect(results.any((tx) => tx.id == 'tx-local-tz'), isTrue);
+    });
   });
 
   group('BudgetDao', () {

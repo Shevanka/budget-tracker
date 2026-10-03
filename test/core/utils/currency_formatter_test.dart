@@ -49,18 +49,33 @@ void main() {
     test('parses various formatted and unformatted strings to integer', () {
       expect(CurrencyFormatter.tryParse('Rp 50.000'), equals(50000));
       expect(CurrencyFormatter.tryParse('50.000'), equals(50000));
+      expect(CurrencyFormatter.tryParse('50000'), equals(50000));
       expect(CurrencyFormatter.tryParse('50,000'), equals(50000));
       expect(CurrencyFormatter.tryParse('1.500.000'), equals(1500000));
       expect(CurrencyFormatter.tryParse('Rp 1.500.000'), equals(1500000));
+      expect(CurrencyFormatter.tryParse('IDR 50.000'), equals(50000));
       expect(CurrencyFormatter.tryParse('-Rp 50.000'), equals(-50000));
-      expect(CurrencyFormatter.tryParse('Pembelian di RESTO SEDAP Rp 45.000'), equals(45000));
+      expect(CurrencyFormatter.tryParse('(Rp 50.000)'), equals(-50000));
     });
 
-    test('returns null / default for non-numeric inputs', () {
+    test('handles decimal cents by stripping fractional currency', () {
+      expect(CurrencyFormatter.tryParse('Rp 50.000,00'), equals(50000));
+      expect(CurrencyFormatter.tryParse('50.000,00'), equals(50000));
+      expect(CurrencyFormatter.tryParse('50000,00'), equals(50000));
+      expect(CurrencyFormatter.tryParse('50000.00'), equals(50000));
+      expect(CurrencyFormatter.tryParse('1.500.000,50'), equals(1500000));
+    });
+
+    test('returns null / default for non-numeric or malformed mixed text inputs', () {
       expect(CurrencyFormatter.tryParse(null), isNull);
       expect(CurrencyFormatter.tryParse(''), isNull);
       expect(CurrencyFormatter.tryParse('   '), isNull);
       expect(CurrencyFormatter.tryParse('non-numeric string'), isNull);
+      expect(CurrencyFormatter.tryParse('Pembelian di RESTO SEDAP Rp 45.000'), isNull);
+      expect(CurrencyFormatter.tryParse('Order 123 Rp 50.000'), isNull);
+      expect(CurrencyFormatter.tryParse('abc123def'), isNull);
+      expect(CurrencyFormatter.tryParse('50..000'), isNull);
+      expect(CurrencyFormatter.tryParse('12.34'), isNull);
       expect(CurrencyFormatter.parse('invalid', defaultValue: 100), equals(100));
     });
 
