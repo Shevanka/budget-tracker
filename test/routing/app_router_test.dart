@@ -1,5 +1,7 @@
 import 'package:budget_tracker/app.dart';
 import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:budget_tracker/features/transactions/presentation/screens/transactions_screen.dart';
+import 'package:budget_tracker/features/transactions/providers/transactions_provider.dart';
 import 'package:budget_tracker/routing/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,8 +10,13 @@ import 'package:go_router/go_router.dart';
 
 void main() {
   Widget createTestApp() {
-    return const ProviderScope(
-      child: BudgetTrackerApp(),
+    return ProviderScope(
+      overrides: [
+        groupedTransactionsProvider.overrideWithValue(
+          const AsyncValue.data([]),
+        ),
+      ],
+      child: const BudgetTrackerApp(),
     );
   }
 
@@ -23,7 +30,8 @@ void main() {
       await tester.tap(find.text('Transactions'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Transactions History'), findsOneWidget);
+      expect(find.byType(TransactionsScreen), findsOneWidget);
+      expect(find.text('No transactions yet'), findsOneWidget);
     });
 
     testWidgets('switches to Reports tab on tap', (tester) async {

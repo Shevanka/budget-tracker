@@ -300,6 +300,50 @@ void main() {
       final results = await db.transactionDao.getTransactionsByDateRange(localStart, localEnd);
       expect(results.any((tx) => tx.id == 'tx-local-tz'), isTrue);
     });
+
+    test('getTransactionsWithCategory and watchTransactionsWithCategory join categories correctly', () async {
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-food'),
+          amount: const drift.Value(45000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('BCA'),
+          date: drift.Value(DateTime.utc(2026, 10, 10, 12, 0)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 10, 12, 0)),
+          note: const drift.Value('Dinner'),
+        ),
+      );
+
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-transport'),
+          amount: const drift.Value(20000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-transport'),
+          source: const drift.Value('Cash'),
+          date: drift.Value(DateTime.utc(2026, 10, 11, 8, 30)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 11, 8, 30)),
+          note: const drift.Value('Bus ticket'),
+        ),
+      );
+
+      final list = await db.transactionDao.getTransactionsWithCategory();
+      expect(list.length, 2);
+
+      // Ordered by date desc: tx-transport (Oct 11) then tx-food (Oct 10)
+      expect(list.first.transaction.id, 'tx-transport');
+      expect(list.first.category?.name, 'Transport');
+      expect(list.first.category?.icon, 'directions_car');
+
+      expect(list.last.transaction.id, 'tx-food');
+      expect(list.last.category?.name, 'Food');
+      expect(list.last.category?.icon, 'restaurant');
+
+      final streamed = await db.transactionDao.watchTransactionsWithCategory().first;
+      expect(streamed.length, 2);
+      expect(streamed.first.transaction.id, 'tx-transport');
+    });
   });
 
   group('BudgetDao', () {

@@ -175,4 +175,74 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
     final result = await query.map((row) => row.read(sumExp)).getSingle();
     return result ?? 0;
   }
+
+  /// Streams transactions joined with their categories, ordered by date descending.
+  Stream<List<TransactionWithCategory>> watchTransactionsWithCategory() {
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
+
+  /// Fetches transactions joined with their categories, ordered by date descending.
+  Future<List<TransactionWithCategory>> getTransactionsWithCategory() {
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    return query.get().then((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
+}
+
+/// A transaction combined with its optional joined [Category].
+class TransactionWithCategory {
+  final Transaction transaction;
+  final Category? category;
+
+  const TransactionWithCategory({
+    required this.transaction,
+    this.category,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TransactionWithCategory &&
+          runtimeType == other.runtimeType &&
+          transaction == other.transaction &&
+          category == other.category;
+
+  @override
+  int get hashCode => transaction.hashCode ^ category.hashCode;
 }
