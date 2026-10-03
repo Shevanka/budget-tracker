@@ -45,6 +45,7 @@ google-services.json
 .pub/
 /build/
 /coverage/
+/web/
 
 # Symbolication related
 app.*.symbols
