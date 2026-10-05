@@ -1,5 +1,9 @@
 import 'package:budget_tracker/app.dart';
+import 'package:budget_tracker/database/app_database.dart';
+import 'package:budget_tracker/database/database_provider.dart';
+import 'package:budget_tracker/features/categories/providers/categories_provider.dart';
 import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:budget_tracker/features/transactions/presentation/screens/add_edit_transaction_screen.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/transactions_screen.dart';
 import 'package:budget_tracker/features/transactions/providers/transactions_provider.dart';
 import 'package:budget_tracker/routing/app_routes.dart';
@@ -9,11 +13,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 void main() {
+  late AppDatabase db;
+
+  setUp(() {
+    db = AppDatabase.inMemory();
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
   Widget createTestApp() {
     return ProviderScope(
       overrides: [
+        databaseProvider.overrideWithValue(db),
         groupedTransactionsProvider.overrideWithValue(
           const AsyncValue.data([]),
+        ),
+        activeCategoriesProvider.overrideWith(
+          (ref) => Stream.value([]),
         ),
       ],
       child: const BudgetTrackerApp(),
@@ -66,7 +84,8 @@ void main() {
       await tester.tap(find.text('Add Transaction').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('Record New Transaction'), findsOneWidget);
+      expect(find.byType(AddEditTransactionScreen), findsOneWidget);
+      expect(find.text('Add Transaction'), findsWidgets);
     });
 
     testWidgets('navigates to Budget Setup screen', (tester) async {
@@ -114,8 +133,8 @@ void main() {
       context.push(AppRoute.editTransaction.path.replaceAll(':id', 'tx-123'));
       await tester.pumpAndSettle();
 
+      expect(find.byType(AddEditTransactionScreen), findsOneWidget);
       expect(find.text('Edit Transaction'), findsOneWidget);
-      expect(find.text('Editing Transaction (tx-123)'), findsOneWidget);
     });
 
     testWidgets('navigates to Receipt Picker screen', (tester) async {

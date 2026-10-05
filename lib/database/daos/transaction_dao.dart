@@ -47,6 +47,12 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
         .getSingleOrNull();
   }
 
+  /// Streams a transaction by id.
+  Stream<Transaction?> watchTransactionById(String id) {
+    return (select(transactions)..where((tbl) => tbl.id.equals(id)))
+        .watchSingleOrNull();
+  }
+
   /// Streams recent transactions ordered by date descending, then createdAt descending.
   Stream<List<Transaction>> watchRecentTransactions({int limit = 5}) {
     return (select(transactions)

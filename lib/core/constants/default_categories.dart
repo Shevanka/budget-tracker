@@ -32,16 +32,28 @@ abstract final class DefaultCategories {
     otherName,
   ];
 
-  /// Helper to convert a stored icon codePoint string back to [IconData].
+  /// Helper to convert a stored icon codePoint string or named identifier back to [IconData].
   static IconData getIconData(
     String codePointStr, {
     IconData fallback = Icons.category,
   }) {
     final codePoint = int.tryParse(codePointStr);
-    if (codePoint == null) {
-      return fallback;
+    if (codePoint != null) {
+      return IconData(codePoint, fontFamily: 'MaterialIcons');
     }
-    return IconData(codePoint, fontFamily: 'MaterialIcons');
+    return switch (codePointStr) {
+      'restaurant' => Icons.restaurant,
+      'directions_car' => Icons.directions_car,
+      'receipt' || 'receipt_long' => Icons.receipt_long,
+      'shopping_cart' || 'shopping_bag' => Icons.shopping_bag,
+      'medical_services' || 'health_and_safety' => Icons.medical_services,
+      'movie' || 'theater_comedy' => Icons.movie,
+      'more_horiz' || 'category' => Icons.category,
+      'attach_money' || 'payments' => Icons.payments,
+      'trending_up' => Icons.trending_up,
+      'work' => Icons.work,
+      _ => fallback,
+    };
   }
 
   /// Generates the 7 default category companions to seed into Drift DB.

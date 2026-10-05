@@ -81,4 +81,105 @@ void main() {
     expect(grouped.value!.length, 1);
     expect(grouped.value!.first.totalExpense, 50000);
   });
+
+  test('TransactionController createTransaction inserts transaction with UUID v4 and UTC date', () async {
+    final controller = container.read(transactionControllerProvider.notifier);
+    final localDate = DateTime(2026, 10, 15, 14, 30);
+
+    final created = await controller.createTransaction(
+      amount: 75000,
+      type: TransactionType.expense,
+      categoryId: 'cat-food',
+      source: 'BCA',
+      date: localDate,
+      note: 'Team Lunch',
+    );
+
+    expect(created, isNotNull);
+    expect(created!.amount, 75000);
+    expect(created.type, TransactionType.expense);
+    expect(created.categoryId, 'cat-food');
+    expect(created.source, 'BCA');
+    expect(created.note, 'Team Lunch');
+    expect(created.date.isUtc, isTrue);
+    expect(created.date, localDate.toUtc());
+    expect(created.createdAt.isUtc, isTrue);
+    // UUID v4 format verification
+    expect(
+      RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+          .hasMatch(created.id),
+      isTrue,
+    );
+
+    // Verify accessible via transactionByIdProvider
+    final fetched = await container.read(transactionByIdProvider(created.id).future);
+    expect(fetched, isNotNull);
+    expect(fetched!.id, created.id);
+  });
+
+  test('TransactionController updateTransaction updates fields and sets updatedAt', () async {
+    final controller = container.read(transactionControllerProvider.notifier);
+    final created = await controller.createTransaction(
+      amount: 30000,
+      type: TransactionType.expense,
+      categoryId: 'cat-food',
+      source: 'Cash',
+      date: DateTime.utc(2026, 10, 10),
+      note: 'Initial Note',
+    );
+
+    expect(created, isNotNull);
+    expect(created!.updatedAt, isNull);
+
+    final success = await controller.updateTransaction(
+      id: created.id,
+      amount: 45000,
+      type: TransactionType.income,
+      categoryId: 'cat-food',
+      source: 'GoPay',
+      date: DateTime.utc(2026, 10, 11),
+      note: 'Updated Note',
+    );
+
+    expect(success, isTrue);
+
+    final updated = await db.transactionDao.getTransactionById(created.id);
+    expect(updated, isNotNull);
+    expect(updated!.amount, 45000);
+    expect(updated.type, TransactionType.income);
+    expect(updated.source, 'GoPay');
+    expect(updated.note, 'Updated Note');
+    expect(updated.updatedAt, isNotNull);
+    expect(updated.updatedAt!.isUtc, isTrue);
+  });
+
+  test('TransactionController deleteTransactionWithUndo and restoreTransaction works seamlessly', () async {
+    final controller = container.read(transactionControllerProvider.notifier);
+    final created = await controller.createTransaction(
+      amount: 20000,
+      type: TransactionType.expense,
+      categoryId: 'cat-food',
+      source: 'OVO',
+      date: DateTime.utc(2026, 10, 12),
+      note: 'Snack',
+    );
+
+    expect(created, isNotNull);
+
+    // Delete with undo
+    final deleted = await controller.deleteTransactionWithUndo(created!.id);
+    expect(deleted, isNotNull);
+    expect(deleted!.id, created.id);
+    expect(await db.transactionDao.getTransactionById(created.id), isNull);
+
+    // Restore
+    final restored = await controller.restoreTransaction(deleted);
+    expect(restored, isTrue);
+
+    final retrieved = await db.transactionDao.getTransactionById(created.id);
+    expect(retrieved, isNotNull);
+    expect(retrieved!.id, created.id);
+    expect(retrieved.amount, 20000);
+    expect(retrieved.source, 'OVO');
+  });
 }
