@@ -33,6 +33,12 @@ void main() {
         activeCategoriesProvider.overrideWith(
           (ref) => Stream.value([]),
         ),
+        activeCategoriesByTypeProvider.overrideWith(
+          (ref, type) => Stream.value([]),
+        ),
+        transactionByIdProvider.overrideWith(
+          (ref, id) => Future.value(null),
+        ),
       ],
       child: const BudgetTrackerApp(),
     );

@@ -142,9 +142,14 @@ class _AddEditTransactionScreenState
                   ],
                   selected: {_selectedType},
                   onSelectionChanged: (newSelection) {
-                    setState(() {
-                      _selectedType = newSelection.first;
-                    });
+                    final newType = newSelection.first;
+                    if (newType != _selectedType) {
+                      setState(() {
+                        _selectedType = newType;
+                        _selectedCategoryId = null;
+                        _categoryError = null;
+                      });
+                    }
                   },
                 ),
                 const SizedBox(height: 24),
@@ -194,6 +199,7 @@ class _AddEditTransactionScreenState
                 // Category Picker
                 CategoryPickerField(
                   selectedCategoryId: _selectedCategoryId,
+                  categoryType: _selectedType,
                   errorMessage: _categoryError,
                   onCategorySelected: (cat) {
                     setState(() {

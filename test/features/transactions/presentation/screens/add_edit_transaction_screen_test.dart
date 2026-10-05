@@ -18,6 +18,7 @@ void main() {
     name: 'Food',
     icon: 'restaurant',
     color: 0xFF43A047,
+    type: TransactionType.expense,
     isDefault: true,
     isActive: true,
     sortOrder: 0,
@@ -29,9 +30,22 @@ void main() {
     name: 'Transport',
     icon: 'directions_car',
     color: 0xFF1E88E5,
+    type: TransactionType.expense,
     isDefault: true,
     isActive: true,
     sortOrder: 1,
+    createdAt: DateTime.utc(2026, 10, 1),
+  );
+
+  final salaryCategory = Category(
+    id: 'cat-salary',
+    name: 'Salary',
+    icon: 'payments',
+    color: 0xFF2E7D32,
+    type: TransactionType.income,
+    isDefault: true,
+    isActive: true,
+    sortOrder: 0,
     createdAt: DateTime.utc(2026, 10, 1),
   );
 
@@ -43,6 +57,7 @@ void main() {
         name: drift.Value(foodCategory.name),
         icon: drift.Value(foodCategory.icon),
         color: drift.Value(foodCategory.color),
+        type: drift.Value(foodCategory.type),
         createdAt: drift.Value(foodCategory.createdAt),
       ),
     );
@@ -52,7 +67,18 @@ void main() {
         name: drift.Value(transportCategory.name),
         icon: drift.Value(transportCategory.icon),
         color: drift.Value(transportCategory.color),
+        type: drift.Value(transportCategory.type),
         createdAt: drift.Value(transportCategory.createdAt),
+      ),
+    );
+    await db.categoryDao.insertCategory(
+      CategoriesCompanion(
+        id: drift.Value(salaryCategory.id),
+        name: drift.Value(salaryCategory.name),
+        icon: drift.Value(salaryCategory.icon),
+        color: drift.Value(salaryCategory.color),
+        type: drift.Value(salaryCategory.type),
+        createdAt: drift.Value(salaryCategory.createdAt),
       ),
     );
   });
@@ -110,7 +136,14 @@ void main() {
       overrides: [
         databaseProvider.overrideWithValue(db),
         activeCategoriesProvider.overrideWith(
-          (ref) => Stream.value([foodCategory, transportCategory]),
+          (ref) => Stream.value([foodCategory, transportCategory, salaryCategory]),
+        ),
+        activeCategoriesByTypeProvider.overrideWith(
+          (ref, type) => Stream.value(
+            [foodCategory, transportCategory, salaryCategory]
+                .where((c) => c.type == type)
+                .toList(),
+          ),
         ),
       ],
       child: MaterialApp.router(
@@ -190,6 +223,25 @@ void main() {
       expect(find.text('Receipt Picker Target'), findsOneWidget);
     });
 
+    testWidgets('clears selected category when switching between transaction types', (tester) async {
+      await pumpScreen(tester);
+
+      // Select expense category Food
+      await tester.tap(find.text('Select a category'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Food'));
+      await tester.pumpAndSettle();
+      expect(find.text('Food'), findsOneWidget);
+
+      // Switch to Income
+      await tester.tap(find.text('Income'));
+      await tester.pumpAndSettle();
+
+      // Food should be cleared and reset to prompt
+      expect(find.text('Select a category'), findsOneWidget);
+      expect(find.text('Food'), findsNothing);
+    });
+
     testWidgets('successfully creates an expense transaction with category and amount', (tester) async {
       await pumpScreen(tester);
 
@@ -237,10 +289,10 @@ void main() {
       // Enter amount: 5.000.000
       await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '5000000');
 
-      // Select category Transport
+      // Select category Salary
       await tester.tap(find.text('Select a category'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Transport'));
+      await tester.tap(find.text('Salary'));
       await tester.pumpAndSettle();
 
       // Tap Mandiri chip
@@ -256,6 +308,7 @@ void main() {
       final created = transactions.first.transaction;
       expect(created.amount, 5000000);
       expect(created.type, TransactionType.income);
+      expect(created.categoryId, 'cat-salary');
       expect(created.source, 'Mandiri');
 
       // Returns to list and shows snackbar

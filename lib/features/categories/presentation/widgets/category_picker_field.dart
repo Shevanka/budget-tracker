@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/default_categories.dart';
 import '../../../../database/app_database.dart';
+import '../../../../database/converters/transaction_type.dart';
 import '../../providers/categories_provider.dart';
 
 /// Form picker field that displays the currently selected category
@@ -12,18 +13,22 @@ class CategoryPickerField extends ConsumerWidget {
     super.key,
     required this.selectedCategoryId,
     required this.onCategorySelected,
+    this.categoryType,
     this.errorMessage,
   });
 
   final String? selectedCategoryId;
   final ValueChanged<Category> onCategorySelected;
+  final TransactionType? categoryType;
   final String? errorMessage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final categoriesAsync = ref.watch(activeCategoriesProvider);
+    final categoriesAsync = categoryType != null
+        ? ref.watch(activeCategoriesByTypeProvider(categoryType!))
+        : ref.watch(activeCategoriesProvider);
 
     final selectedCategory = categoriesAsync.whenOrNull(
       data: (categories) {
@@ -147,7 +152,15 @@ class CategoryPickerField extends ConsumerWidget {
       builder: (sheetContext) {
         return Consumer(
           builder: (context, sheetRef, _) {
-            final categoriesAsync = sheetRef.watch(activeCategoriesProvider);
+            final categoriesAsync = categoryType != null
+                ? sheetRef.watch(activeCategoriesByTypeProvider(categoryType!))
+                : sheetRef.watch(activeCategoriesProvider);
+
+            final sheetTitle = categoryType == TransactionType.income
+                ? 'Select Income Category'
+                : categoryType == TransactionType.expense
+                    ? 'Select Expense Category'
+                    : 'Select Category';
 
             return SafeArea(
               child: Padding(
@@ -169,7 +182,7 @@ class CategoryPickerField extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Select Category',
+                          sheetTitle,
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),

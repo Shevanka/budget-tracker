@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
+import '../converters/transaction_type.dart';
 import '../tables/categories.dart';
 
 part 'category_dao.g.dart';
@@ -9,28 +10,32 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
     with _$CategoryDaoMixin {
   CategoryDao(super.db);
 
-  /// Streams active categories sorted by sortOrder asc, then name asc.
-  Stream<List<Category>> watchActiveCategories() {
-    return (select(categories)
-          ..where((tbl) => tbl.isActive.equals(true))
-          ..orderBy([
-            (tbl) =>
-                OrderingTerm(expression: tbl.sortOrder, mode: OrderingMode.asc),
-            (tbl) => OrderingTerm(expression: tbl.name, mode: OrderingMode.asc),
-          ]))
-        .watch();
+  /// Streams active categories, optionally filtered by [type], sorted by sortOrder asc, then name asc.
+  Stream<List<Category>> watchActiveCategories({TransactionType? type}) {
+    final query = select(categories)..where((tbl) => tbl.isActive.equals(true));
+    if (type != null) {
+      query.where((tbl) => tbl.type.equalsValue(type));
+    }
+    query.orderBy([
+      (tbl) =>
+          OrderingTerm(expression: tbl.sortOrder, mode: OrderingMode.asc),
+      (tbl) => OrderingTerm(expression: tbl.name, mode: OrderingMode.asc),
+    ]);
+    return query.watch();
   }
 
-  /// Fetches active categories sorted by sortOrder asc, then name asc.
-  Future<List<Category>> getActiveCategories() {
-    return (select(categories)
-          ..where((tbl) => tbl.isActive.equals(true))
-          ..orderBy([
-            (tbl) =>
-                OrderingTerm(expression: tbl.sortOrder, mode: OrderingMode.asc),
-            (tbl) => OrderingTerm(expression: tbl.name, mode: OrderingMode.asc),
-          ]))
-        .get();
+  /// Fetches active categories, optionally filtered by [type], sorted by sortOrder asc, then name asc.
+  Future<List<Category>> getActiveCategories({TransactionType? type}) {
+    final query = select(categories)..where((tbl) => tbl.isActive.equals(true));
+    if (type != null) {
+      query.where((tbl) => tbl.type.equalsValue(type));
+    }
+    query.orderBy([
+      (tbl) =>
+          OrderingTerm(expression: tbl.sortOrder, mode: OrderingMode.asc),
+      (tbl) => OrderingTerm(expression: tbl.name, mode: OrderingMode.asc),
+    ]);
+    return query.get();
   }
 
   /// Fetches all categories including soft-deleted ones.

@@ -45,6 +45,16 @@ class $CategoriesTable extends Categories
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<TransactionType, String> type =
+      GeneratedColumn<String>(
+        'type',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('expense'),
+      ).withConverter<TransactionType>($CategoriesTable.$convertertype);
   static const VerificationMeta _isDefaultMeta = const VerificationMeta(
     'isDefault',
   );
@@ -102,6 +112,7 @@ class $CategoriesTable extends Categories
     name,
     icon,
     color,
+    type,
     isDefault,
     isActive,
     sortOrder,
@@ -191,6 +202,12 @@ class $CategoriesTable extends Categories
         DriftSqlType.int,
         data['${effectivePrefix}color'],
       )!,
+      type: $CategoriesTable.$convertertype.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}type'],
+        )!,
+      ),
       isDefault: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_default'],
@@ -217,6 +234,8 @@ class $CategoriesTable extends Categories
     return $CategoriesTable(attachedDatabase, alias);
   }
 
+  static JsonTypeConverter2<TransactionType, String, String> $convertertype =
+      const EnumNameConverter<TransactionType>(TransactionType.values);
   static TypeConverter<DateTime, DateTime> $convertercreatedAt =
       const UtcDateTimeConverter();
 }
@@ -226,6 +245,7 @@ class Category extends DataClass implements Insertable<Category> {
   final String name;
   final String icon;
   final int color;
+  final TransactionType type;
   final bool isDefault;
   final bool isActive;
   final int sortOrder;
@@ -235,6 +255,7 @@ class Category extends DataClass implements Insertable<Category> {
     required this.name,
     required this.icon,
     required this.color,
+    required this.type,
     required this.isDefault,
     required this.isActive,
     required this.sortOrder,
@@ -247,6 +268,11 @@ class Category extends DataClass implements Insertable<Category> {
     map['name'] = Variable<String>(name);
     map['icon'] = Variable<String>(icon);
     map['color'] = Variable<int>(color);
+    {
+      map['type'] = Variable<String>(
+        $CategoriesTable.$convertertype.toSql(type),
+      );
+    }
     map['is_default'] = Variable<bool>(isDefault);
     map['is_active'] = Variable<bool>(isActive);
     map['sort_order'] = Variable<int>(sortOrder);
@@ -264,6 +290,7 @@ class Category extends DataClass implements Insertable<Category> {
       name: Value(name),
       icon: Value(icon),
       color: Value(color),
+      type: Value(type),
       isDefault: Value(isDefault),
       isActive: Value(isActive),
       sortOrder: Value(sortOrder),
@@ -281,6 +308,9 @@ class Category extends DataClass implements Insertable<Category> {
       name: serializer.fromJson<String>(json['name']),
       icon: serializer.fromJson<String>(json['icon']),
       color: serializer.fromJson<int>(json['color']),
+      type: $CategoriesTable.$convertertype.fromJson(
+        serializer.fromJson<String>(json['type']),
+      ),
       isDefault: serializer.fromJson<bool>(json['isDefault']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
@@ -295,6 +325,9 @@ class Category extends DataClass implements Insertable<Category> {
       'name': serializer.toJson<String>(name),
       'icon': serializer.toJson<String>(icon),
       'color': serializer.toJson<int>(color),
+      'type': serializer.toJson<String>(
+        $CategoriesTable.$convertertype.toJson(type),
+      ),
       'isDefault': serializer.toJson<bool>(isDefault),
       'isActive': serializer.toJson<bool>(isActive),
       'sortOrder': serializer.toJson<int>(sortOrder),
@@ -307,6 +340,7 @@ class Category extends DataClass implements Insertable<Category> {
     String? name,
     String? icon,
     int? color,
+    TransactionType? type,
     bool? isDefault,
     bool? isActive,
     int? sortOrder,
@@ -316,6 +350,7 @@ class Category extends DataClass implements Insertable<Category> {
     name: name ?? this.name,
     icon: icon ?? this.icon,
     color: color ?? this.color,
+    type: type ?? this.type,
     isDefault: isDefault ?? this.isDefault,
     isActive: isActive ?? this.isActive,
     sortOrder: sortOrder ?? this.sortOrder,
@@ -327,6 +362,7 @@ class Category extends DataClass implements Insertable<Category> {
       name: data.name.present ? data.name.value : this.name,
       icon: data.icon.present ? data.icon.value : this.icon,
       color: data.color.present ? data.color.value : this.color,
+      type: data.type.present ? data.type.value : this.type,
       isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
@@ -341,6 +377,7 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('name: $name, ')
           ..write('icon: $icon, ')
           ..write('color: $color, ')
+          ..write('type: $type, ')
           ..write('isDefault: $isDefault, ')
           ..write('isActive: $isActive, ')
           ..write('sortOrder: $sortOrder, ')
@@ -355,6 +392,7 @@ class Category extends DataClass implements Insertable<Category> {
     name,
     icon,
     color,
+    type,
     isDefault,
     isActive,
     sortOrder,
@@ -368,6 +406,7 @@ class Category extends DataClass implements Insertable<Category> {
           other.name == this.name &&
           other.icon == this.icon &&
           other.color == this.color &&
+          other.type == this.type &&
           other.isDefault == this.isDefault &&
           other.isActive == this.isActive &&
           other.sortOrder == this.sortOrder &&
@@ -379,6 +418,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<String> name;
   final Value<String> icon;
   final Value<int> color;
+  final Value<TransactionType> type;
   final Value<bool> isDefault;
   final Value<bool> isActive;
   final Value<int> sortOrder;
@@ -389,6 +429,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.name = const Value.absent(),
     this.icon = const Value.absent(),
     this.color = const Value.absent(),
+    this.type = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.isActive = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -400,6 +441,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     required String name,
     required String icon,
     required int color,
+    this.type = const Value.absent(),
     this.isDefault = const Value.absent(),
     this.isActive = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -415,6 +457,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<String>? name,
     Expression<String>? icon,
     Expression<int>? color,
+    Expression<String>? type,
     Expression<bool>? isDefault,
     Expression<bool>? isActive,
     Expression<int>? sortOrder,
@@ -426,6 +469,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (name != null) 'name': name,
       if (icon != null) 'icon': icon,
       if (color != null) 'color': color,
+      if (type != null) 'type': type,
       if (isDefault != null) 'is_default': isDefault,
       if (isActive != null) 'is_active': isActive,
       if (sortOrder != null) 'sort_order': sortOrder,
@@ -439,6 +483,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Value<String>? name,
     Value<String>? icon,
     Value<int>? color,
+    Value<TransactionType>? type,
     Value<bool>? isDefault,
     Value<bool>? isActive,
     Value<int>? sortOrder,
@@ -450,6 +495,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       name: name ?? this.name,
       icon: icon ?? this.icon,
       color: color ?? this.color,
+      type: type ?? this.type,
       isDefault: isDefault ?? this.isDefault,
       isActive: isActive ?? this.isActive,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -472,6 +518,11 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     }
     if (color.present) {
       map['color'] = Variable<int>(color.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(
+        $CategoriesTable.$convertertype.toSql(type.value),
+      );
     }
     if (isDefault.present) {
       map['is_default'] = Variable<bool>(isDefault.value);
@@ -500,6 +551,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('name: $name, ')
           ..write('icon: $icon, ')
           ..write('color: $color, ')
+          ..write('type: $type, ')
           ..write('isDefault: $isDefault, ')
           ..write('isActive: $isActive, ')
           ..write('sortOrder: $sortOrder, ')
@@ -2245,6 +2297,7 @@ typedef $$CategoriesTableCreateCompanionBuilder =
       required String name,
       required String icon,
       required int color,
+      Value<TransactionType> type,
       Value<bool> isDefault,
       Value<bool> isActive,
       Value<int> sortOrder,
@@ -2257,6 +2310,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> icon,
       Value<int> color,
+      Value<TransactionType> type,
       Value<bool> isDefault,
       Value<bool> isActive,
       Value<int> sortOrder,
@@ -2340,6 +2394,12 @@ class $$CategoriesTableFilterComposer
   ColumnFilters<int> get color => $composableBuilder(
     column: $table.color,
     builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<TransactionType, TransactionType, String>
+  get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<bool> get isDefault => $composableBuilder(
@@ -2443,6 +2503,11 @@ class $$CategoriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isDefault => $composableBuilder(
     column: $table.isDefault,
     builder: (column) => ColumnOrderings(column),
@@ -2484,6 +2549,9 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<int> get color =>
       $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<TransactionType, String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
 
   GeneratedColumn<bool> get isDefault =>
       $composableBuilder(column: $table.isDefault, builder: (column) => column);
@@ -2583,6 +2651,7 @@ class $$CategoriesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> icon = const Value.absent(),
                 Value<int> color = const Value.absent(),
+                Value<TransactionType> type = const Value.absent(),
                 Value<bool> isDefault = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
@@ -2593,6 +2662,7 @@ class $$CategoriesTableTableManager
                 name: name,
                 icon: icon,
                 color: color,
+                type: type,
                 isDefault: isDefault,
                 isActive: isActive,
                 sortOrder: sortOrder,
@@ -2605,6 +2675,7 @@ class $$CategoriesTableTableManager
                 required String name,
                 required String icon,
                 required int color,
+                Value<TransactionType> type = const Value.absent(),
                 Value<bool> isDefault = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
@@ -2615,6 +2686,7 @@ class $$CategoriesTableTableManager
                 name: name,
                 icon: icon,
                 color: color,
+                type: type,
                 isDefault: isDefault,
                 isActive: isActive,
                 sortOrder: sortOrder,

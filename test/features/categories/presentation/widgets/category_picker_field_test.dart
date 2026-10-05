@@ -1,4 +1,5 @@
 import 'package:budget_tracker/database/app_database.dart';
+import 'package:budget_tracker/database/converters/transaction_type.dart';
 import 'package:budget_tracker/features/categories/presentation/widgets/category_picker_field.dart';
 import 'package:budget_tracker/features/categories/providers/categories_provider.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ void main() {
     name: 'Food',
     icon: 'restaurant',
     color: 0xFF43A047,
+    type: TransactionType.expense,
     isDefault: true,
     isActive: true,
     sortOrder: 0,
@@ -22,22 +24,40 @@ void main() {
     name: 'Transport',
     icon: 'directions_car',
     color: 0xFF1E88E5,
+    type: TransactionType.expense,
     isDefault: true,
     isActive: true,
     sortOrder: 1,
     createdAt: DateTime.utc(2026, 10, 1),
   );
 
+  final salaryCategory = Category(
+    id: 'cat-salary',
+    name: 'Salary',
+    icon: 'payments',
+    color: 0xFF2E7D32,
+    type: TransactionType.income,
+    isDefault: true,
+    isActive: true,
+    sortOrder: 0,
+    createdAt: DateTime.utc(2026, 10, 1),
+  );
+
   Widget createWidget({
     String? selectedCategoryId,
     ValueChanged<Category>? onCategorySelected,
+    TransactionType? categoryType,
     String? errorMessage,
     List<Category>? categories,
   }) {
+    final allCats = categories ?? [foodCategory, transportCategory, salaryCategory];
     return ProviderScope(
       overrides: [
         activeCategoriesProvider.overrideWith(
-          (ref) => Stream.value(categories ?? [foodCategory, transportCategory]),
+          (ref) => Stream.value(allCats),
+        ),
+        activeCategoriesByTypeProvider.overrideWith(
+          (ref, type) => Stream.value(allCats.where((c) => c.type == type).toList()),
         ),
       ],
       child: MaterialApp(
@@ -46,6 +66,7 @@ void main() {
             padding: const EdgeInsets.all(16),
             child: CategoryPickerField(
               selectedCategoryId: selectedCategoryId,
+              categoryType: categoryType,
               onCategorySelected: onCategorySelected ?? (_) {},
               errorMessage: errorMessage,
             ),
@@ -108,5 +129,19 @@ void main() {
     expect(find.text('Select Category'), findsNothing);
     expect(picked, isNotNull);
     expect(picked!.id, 'cat-transport');
+  });
+
+  testWidgets('filters categories by income type when categoryType is income', (tester) async {
+    await tester.pumpWidget(createWidget(categoryType: TransactionType.income));
+    await tester.pumpAndSettle();
+
+    // Tap field to open bottom sheet
+    await tester.tap(find.text('Select a category'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Select Income Category'), findsOneWidget);
+    expect(find.text('Salary'), findsOneWidget);
+    expect(find.text('Food'), findsNothing);
+    expect(find.text('Transport'), findsNothing);
   });
 }

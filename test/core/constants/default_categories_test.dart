@@ -1,33 +1,36 @@
 import 'package:budget_tracker/core/constants/default_categories.dart';
 import 'package:budget_tracker/database/app_database.dart';
+import 'package:budget_tracker/database/converters/transaction_type.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('DefaultCategories definitions', () {
-    test('contains exactly 7 standard default categories', () {
+    test('contains exactly 12 default categories (7 expense and 5 income)', () {
       final companions = DefaultCategories.getCompanions();
-      expect(companions.length, 7);
+      expect(companions.length, 12);
 
       final names = companions.map((c) => c.name.value).toList();
+      expect(names, equals(DefaultCategories.allNames));
+
+      final expenseCompanions = DefaultCategories.getCompanions(type: TransactionType.expense);
+      expect(expenseCompanions.length, 7);
       expect(
-        names,
-        equals([
-          'Food',
-          'Transport',
-          'Bills',
-          'Shopping',
-          'Health',
-          'Entertainment',
-          'Other',
-        ]),
+        expenseCompanions.map((c) => c.name.value).toList(),
+        equals(DefaultCategories.expenseNames),
+      );
+
+      final incomeCompanions = DefaultCategories.getCompanions(type: TransactionType.income);
+      expect(incomeCompanions.length, 5);
+      expect(
+        incomeCompanions.map((c) => c.name.value).toList(),
+        equals(DefaultCategories.incomeNames),
       );
     });
 
-    test('all companions have valid fields, isDefault=true, and unique sortOrder', () {
+    test('all companions have valid fields, isDefault=true, and unique IDs', () {
       final companions = DefaultCategories.getCompanions();
       final ids = <String>{};
-      final sortOrders = <int>{};
 
       final uuidV4Regex = RegExp(
         r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
@@ -40,14 +43,12 @@ void main() {
         expect(uuidV4Regex.hasMatch(c.id.value), isTrue);
         expect(c.isDefault.value, isTrue);
         expect(c.isActive.value, isTrue);
-        expect(c.sortOrder.value, equals(i));
+        expect(c.type.present, isTrue);
 
         ids.add(c.id.value);
-        sortOrders.add(c.sortOrder.value);
       }
 
-      expect(ids.length, 7);
-      expect(sortOrders.length, 7);
+      expect(ids.length, 12);
     });
 
     test('getIconData converts codePoint string to IconData and falls back', () {
@@ -62,14 +63,20 @@ void main() {
   });
 
   group('DefaultCategories Database Seeding', () {
-    test('AppDatabase with seedDefaults=true seeds 7 categories on creation', () async {
+    test('AppDatabase with seedDefaults=true seeds 12 categories on creation', () async {
       final db = AppDatabase.inMemory(seedDefaults: true);
 
       final categories = await db.categoryDao.getActiveCategories();
-      expect(categories.length, 7);
+      expect(categories.length, 12);
 
       final names = categories.map((c) => c.name).toList();
       expect(names, containsAll(DefaultCategories.allNames));
+
+      final expenseCats = await db.categoryDao.getActiveCategories(type: TransactionType.expense);
+      expect(expenseCats.length, 7);
+
+      final incomeCats = await db.categoryDao.getActiveCategories(type: TransactionType.income);
+      expect(incomeCats.length, 5);
 
       for (final cat in categories) {
         expect(cat.isDefault, isTrue);
@@ -82,11 +89,11 @@ void main() {
     test('seeding is idempotent (duplicate insertOrIgnore does not fail or duplicate)', () async {
       final db = AppDatabase.inMemory(seedDefaults: true);
 
-      expect(await db.categoryDao.countActiveCategories(), 7);
+      expect(await db.categoryDao.countActiveCategories(), 12);
 
       // Attempt to seed again
       await db.categoryDao.seedCategories(DefaultCategories.getCompanions());
-      expect(await db.categoryDao.countActiveCategories(), 7);
+      expect(await db.categoryDao.countActiveCategories(), 12);
 
       await db.close();
     });
@@ -99,13 +106,13 @@ void main() {
       await db.categoryDao.seedDefaultCategoriesIfEmpty(
         defaultEntries: DefaultCategories.getCompanions(),
       );
-      expect(await db.categoryDao.countTotalCategories(), 7);
+      expect(await db.categoryDao.countTotalCategories(), 12);
 
       // Calling again when not empty does not add duplicates
       await db.categoryDao.seedDefaultCategoriesIfEmpty(
         defaultEntries: DefaultCategories.getCompanions(),
       );
-      expect(await db.categoryDao.countTotalCategories(), 7);
+      expect(await db.categoryDao.countTotalCategories(), 12);
 
       await db.close();
     });
