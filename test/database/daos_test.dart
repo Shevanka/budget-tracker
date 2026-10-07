@@ -67,26 +67,79 @@ void main() {
       expect(all.first.isActive, isFalse);
     });
 
-    test('seedCategories inserts multiple categories', () async {
-      final entries = [
+    test('soft delete and restore category works seamlessly', () async {
+      await db.categoryDao.insertCategory(
         CategoriesCompanion(
           id: const drift.Value('cat-1'),
+          name: const drift.Value('Bills'),
+          icon: const drift.Value('receipt'),
+          color: const drift.Value(0xFFE53935),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+        ),
+      );
+
+      expect(await db.categoryDao.countActiveCategories(), 1);
+
+      await db.categoryDao.softDeleteCategory('cat-1');
+      expect(await db.categoryDao.countActiveCategories(), 0);
+
+      final inactive = await db.categoryDao.getAllCategories();
+      expect(inactive.first.isActive, isFalse);
+
+      await db.categoryDao.restoreCategory('cat-1');
+      expect(await db.categoryDao.countActiveCategories(), 1);
+
+      final restored = await db.categoryDao.getActiveCategories();
+      expect(restored.first.isActive, isTrue);
+    });
+
+    test('watchCategories filters by includeInactive and type', () async {
+      await db.categoryDao.insertCategory(
+        CategoriesCompanion(
+          id: const drift.Value('cat-exp-active'),
           name: const drift.Value('Food'),
           icon: const drift.Value('restaurant'),
           color: const drift.Value(0xFF43A047),
+          type: const drift.Value(TransactionType.expense),
           createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
         ),
+      );
+      await db.categoryDao.insertCategory(
         CategoriesCompanion(
-          id: const drift.Value('cat-2'),
-          name: const drift.Value('Shopping'),
-          icon: const drift.Value('shopping_cart'),
-          color: const drift.Value(0xFFFB8C00),
+          id: const drift.Value('cat-exp-inactive'),
+          name: const drift.Value('Old Expense'),
+          icon: const drift.Value('restaurant'),
+          color: const drift.Value(0xFF43A047),
+          type: const drift.Value(TransactionType.expense),
+          isActive: const drift.Value(false),
           createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
         ),
-      ];
+      );
+      await db.categoryDao.insertCategory(
+        CategoriesCompanion(
+          id: const drift.Value('cat-inc-active'),
+          name: const drift.Value('Salary'),
+          icon: const drift.Value('payments'),
+          color: const drift.Value(0xFF2E7D32),
+          type: const drift.Value(TransactionType.income),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+        ),
+      );
 
-      await db.categoryDao.seedCategories(entries);
-      expect(await db.categoryDao.countActiveCategories(), 2);
+      final activeExpenses = await db.categoryDao
+          .watchCategories(type: TransactionType.expense, includeInactive: false)
+          .first;
+      expect(activeExpenses.map((c) => c.id).toList(), ['cat-exp-active']);
+
+      final allExpenses = await db.categoryDao
+          .watchCategories(type: TransactionType.expense, includeInactive: true)
+          .first;
+      expect(allExpenses.length, 2);
+
+      final allIncomes = await db.categoryDao
+          .watchCategories(type: TransactionType.income, includeInactive: true)
+          .first;
+      expect(allIncomes.map((c) => c.id).toList(), ['cat-inc-active']);
     });
   });
 

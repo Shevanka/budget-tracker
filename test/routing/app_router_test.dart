@@ -1,6 +1,7 @@
 import 'package:budget_tracker/app.dart';
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/database_provider.dart';
+import 'package:budget_tracker/features/categories/presentation/screens/category_manager_screen.dart';
 import 'package:budget_tracker/features/categories/providers/categories_provider.dart';
 import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/add_edit_transaction_screen.dart';
@@ -35,6 +36,9 @@ void main() {
         ),
         activeCategoriesByTypeProvider.overrideWith(
           (ref, type) => Stream.value([]),
+        ),
+        categoriesByFilterProvider.overrideWith(
+          (ref, filter) => Stream.value([]),
         ),
         transactionByIdProvider.overrideWith(
           (ref, id) => Future.value(null),
@@ -114,7 +118,8 @@ void main() {
       await tester.tap(find.text('Categories'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Category Management'), findsOneWidget);
+      expect(find.byType(CategoryManagerScreen), findsOneWidget);
+      expect(find.text('Category Manager'), findsOneWidget);
     });
 
     testWidgets('navigates to Smart Recording Review from Settings', (tester) async {

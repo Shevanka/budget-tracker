@@ -12,7 +12,19 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
 
   /// Streams active categories, optionally filtered by [type], sorted by sortOrder asc, then name asc.
   Stream<List<Category>> watchActiveCategories({TransactionType? type}) {
-    final query = select(categories)..where((tbl) => tbl.isActive.equals(true));
+    return watchCategories(type: type, includeInactive: false);
+  }
+
+  /// Streams categories, optionally filtered by [type] and [includeInactive].
+  /// Sorted by sortOrder asc, then name asc.
+  Stream<List<Category>> watchCategories({
+    TransactionType? type,
+    bool includeInactive = false,
+  }) {
+    final query = select(categories);
+    if (!includeInactive) {
+      query.where((tbl) => tbl.isActive.equals(true));
+    }
     if (type != null) {
       query.where((tbl) => tbl.type.equalsValue(type));
     }
@@ -79,6 +91,15 @@ class CategoryDao extends DatabaseAccessor<AppDatabase>
     return (update(categories)..where((tbl) => tbl.id.equals(id))).write(
       const CategoriesCompanion(
         isActive: Value(false),
+      ),
+    );
+  }
+
+  /// Restores a soft-deleted category by setting `isActive = true`.
+  Future<int> restoreCategory(String id) {
+    return (update(categories)..where((tbl) => tbl.id.equals(id))).write(
+      const CategoriesCompanion(
+        isActive: Value(true),
       ),
     );
   }
