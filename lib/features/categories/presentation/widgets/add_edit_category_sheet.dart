@@ -6,6 +6,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../database/app_database.dart';
 import '../../../../database/converters/transaction_type.dart';
 import '../../providers/categories_provider.dart';
+import 'category_color_picker.dart';
+import 'category_icon_picker.dart';
 
 /// Modal bottom sheet for creating or editing a category.
 class AddEditCategorySheet extends ConsumerStatefulWidget {
@@ -22,52 +24,11 @@ class AddEditCategorySheet extends ConsumerStatefulWidget {
   final TransactionType initialType;
 
   /// Curated palette of vibrant category colors.
-  static const List<int> availableColors = [
-    0xFF43A047, // Green
-    0xFF2E7D32, // Dark Green
-    0xFF00897B, // Teal
-    0xFF00ACC1, // Cyan
-    0xFF1E88E5, // Blue
-    0xFF3949AB, // Indigo
-    0xFF5E35B1, // Deep Purple
-    0xFF8E24AA, // Purple
-    0xFFD81B60, // Pink
-    0xFFE53935, // Red
-    0xFFF4511E, // Deep Orange
-    0xFFFB8C00, // Orange
-    0xFFFFB300, // Amber
-    0xFF6D4C41, // Brown
-    0xFF546E7A, // Blue Grey
-    0xFF424242, // Grey
-  ];
+  static const List<int> availableColors = CategoryColorPicker.defaultColors;
 
   /// Curated collection of Material icons for expense and income categories.
-  static const List<IconData> availableIcons = [
-    Icons.restaurant,
-    Icons.fastfood,
-    Icons.local_cafe,
-    Icons.shopping_bag,
-    Icons.shopping_cart,
-    Icons.directions_car,
-    Icons.directions_bus,
-    Icons.local_gas_station,
-    Icons.receipt_long,
-    Icons.home,
-    Icons.medical_services,
-    Icons.fitness_center,
-    Icons.movie,
-    Icons.sports_esports,
-    Icons.flight,
-    Icons.school,
-    Icons.card_giftcard,
-    Icons.pets,
-    Icons.payments,
-    Icons.trending_up,
-    Icons.savings,
-    Icons.work,
-    Icons.account_balance,
-    Icons.phone_android,
-  ];
+  static final List<IconData> availableIcons =
+      CategoryIconPicker.allIcons.map((item) => item.icon).toList();
 
   @override
   ConsumerState<AddEditCategorySheet> createState() =>
@@ -331,117 +292,22 @@ class _AddEditCategorySheetState extends ConsumerState<AddEditCategorySheet> {
                 const SizedBox(height: 20),
 
                 // Color Selection
-                Text(
-                  'Color',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 48,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: AddEditCategorySheet.availableColors.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final colorInt = AddEditCategorySheet.availableColors[index];
-                      final isSelected = colorInt == _selectedColor;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() => _selectedColor = colorInt);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Color(colorInt),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isSelected
-                                  ? colorScheme.onSurface
-                                  : Colors.transparent,
-                              width: isSelected ? 3 : 1,
-                            ),
-                            boxShadow: [
-                              if (isSelected)
-                                BoxShadow(
-                                  color: Color(colorInt).withValues(alpha: 0.5),
-                                  blurRadius: 6,
-                                  spreadRadius: 1,
-                                ),
-                            ],
-                          ),
-                          child: isSelected
-                              ? const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 22,
-                                )
-                              : null,
-                        ),
-                      );
-                    },
-                  ),
+                CategoryColorPicker(
+                  selectedColor: _selectedColor,
+                  onColorSelected: (color) {
+                    setState(() => _selectedColor = color);
+                  },
                 ),
                 const SizedBox(height: 20),
 
                 // Icon Selection
-                Text(
-                  'Icon',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: colorScheme.outline.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: AddEditCategorySheet.availableIcons.map((icon) {
-                      final isSelected = icon == _selectedIcon;
-                      return InkWell(
-                        onTap: () {
-                          setState(() => _selectedIcon = icon);
-                        },
-                        borderRadius: BorderRadius.circular(10),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? Color(_selectedColor)
-                                : colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isSelected
-                                  ? Color(_selectedColor)
-                                  : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Icon(
-                            icon,
-                            color: isSelected
-                                ? Colors.white
-                                : colorScheme.onSurfaceVariant,
-                            size: 22,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                CategoryIconPicker(
+                  selectedIcon: _selectedIcon,
+                  selectedColor: _selectedColor,
+                  categoryType: _selectedType,
+                  onIconSelected: (icon) {
+                    setState(() => _selectedIcon = icon);
+                  },
                 ),
                 const SizedBox(height: 24),
 
