@@ -131,6 +131,81 @@ void main() {
       expect(category!.isActive, isFalse);
     });
 
+    test('softDeleteCategory throws StateError when category has transactions', () async {
+      await db.categoryDao.insertCategory(
+        CategoriesCompanion(
+          id: const drift.Value('cat-with-tx'),
+          name: const drift.Value('Has Transactions'),
+          icon: const drift.Value('restaurant'),
+          color: const drift.Value(0xFF43A047),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+        ),
+      );
+
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-link-1'),
+          amount: const drift.Value(25000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-with-tx'),
+          source: const drift.Value('Cash'),
+          date: drift.Value(DateTime.utc(2026, 10, 5)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 5)),
+        ),
+      );
+
+      final controller = container.read(categoryControllerProvider.notifier);
+
+      expect(
+        () => controller.softDeleteCategory('cat-with-tx'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Cannot delete category linked to 1 existing transaction(s)'),
+          ),
+        ),
+      );
+
+      // Verify category is still active
+      final category = await db.categoryDao.getCategoryById('cat-with-tx');
+      expect(category, isNotNull);
+      expect(category!.isActive, isTrue);
+    });
+
+    test('getTransactionCount and transactionCountByCategoryProvider return correct count', () async {
+      await db.categoryDao.insertCategory(
+        CategoriesCompanion(
+          id: const drift.Value('cat-count-test'),
+          name: const drift.Value('Count Test'),
+          icon: const drift.Value('shopping_cart'),
+          color: const drift.Value(0xFF43A047),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+        ),
+      );
+
+      final controller = container.read(categoryControllerProvider.notifier);
+      expect(await controller.getTransactionCount('cat-count-test'), 0);
+      expect(await container.read(transactionCountByCategoryProvider('cat-count-test').future), 0);
+
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-c-1'),
+          amount: const drift.Value(50000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-count-test'),
+          source: const drift.Value('Cash'),
+          date: drift.Value(DateTime.utc(2026, 10, 1)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+        ),
+      );
+
+      expect(await controller.getTransactionCount('cat-count-test'), 1);
+      // Invalidate or read new future
+      container.invalidate(transactionCountByCategoryProvider('cat-count-test'));
+      expect(await container.read(transactionCountByCategoryProvider('cat-count-test').future), 1);
+    });
+
     test('restoreCategory restores inactive category', () async {
       await db.categoryDao.insertCategory(
         CategoriesCompanion(

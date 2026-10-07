@@ -50,6 +50,32 @@ class _CategoryManagerScreenState extends ConsumerState<CategoryManagerScreen> {
   }
 
   Future<void> _confirmDeleteCategory(Category category) async {
+    final count = await ref
+        .read(categoryControllerProvider.notifier)
+        .getTransactionCount(category.id);
+    if (!mounted) return;
+
+    if (count > 0) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Cannot Delete Category'),
+          content: Text(
+            'Cannot delete "${category.name}" because it is linked to $count '
+            'transaction${count == 1 ? '' : 's'}.\n\n'
+            'Please reassign or delete these transactions before deleting this category.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -76,24 +102,35 @@ class _CategoryManagerScreenState extends ConsumerState<CategoryManagerScreen> {
     );
 
     if (confirmed == true && mounted) {
-      await ref
-          .read(categoryControllerProvider.notifier)
-          .softDeleteCategory(category.id);
+      try {
+        await ref
+            .read(categoryControllerProvider.notifier)
+            .softDeleteCategory(category.id);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Category "${category.name}" deleted'),
-            action: SnackBarAction(
-              label: 'Undo',
-              onPressed: () {
-                ref
-                    .read(categoryControllerProvider.notifier)
-                    .restoreCategory(category.id);
-              },
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Category "${category.name}" deleted'),
+              action: SnackBarAction(
+                label: 'Undo',
+                onPressed: () {
+                  ref
+                      .read(categoryControllerProvider.notifier)
+                      .restoreCategory(category.id);
+                },
+              ),
             ),
-          ),
-        );
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete category: $e'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
       }
     }
   }

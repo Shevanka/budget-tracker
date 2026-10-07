@@ -397,6 +397,37 @@ void main() {
       expect(streamed.length, 2);
       expect(streamed.first.transaction.id, 'tx-transport');
     });
+
+    test('countTransactionsForCategory returns accurate transaction count', () async {
+      expect(await db.transactionDao.countTransactionsForCategory('cat-food'), 0);
+
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-count-1'),
+          amount: const drift.Value(50000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('Cash'),
+          date: drift.Value(DateTime.utc(2026, 10, 1)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+        ),
+      );
+
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-count-2'),
+          amount: const drift.Value(30000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('BCA'),
+          date: drift.Value(DateTime.utc(2026, 10, 2)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 2)),
+        ),
+      );
+
+      expect(await db.transactionDao.countTransactionsForCategory('cat-food'), 2);
+      expect(await db.transactionDao.countTransactionsForCategory('cat-transport'), 0);
+    });
   });
 
   group('BudgetDao', () {

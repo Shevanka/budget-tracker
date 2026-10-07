@@ -51,10 +51,23 @@ final categoryByIdProvider =
   return dao.getCategoryById(id);
 });
 
+/// Fetches the count of transactions linked to a category.
+final transactionCountByCategoryProvider =
+    FutureProvider.autoDispose.family<int, String>((ref, categoryId) {
+  final dao = ref.watch(transactionDaoProvider);
+  return dao.countTransactionsForCategory(categoryId);
+});
+
 /// Controller handling category mutations (create, update, soft delete, restore).
 class CategoryController extends AutoDisposeAsyncNotifier<void> {
   @override
   Future<void> build() async {}
+
+  /// Fetches the count of transactions linked to a category.
+  Future<int> getTransactionCount(String categoryId) async {
+    final transactionDao = ref.read(transactionDaoProvider);
+    return transactionDao.countTransactionsForCategory(categoryId);
+  }
 
   /// Creates a new category with a generated UUID v4 and UTC timestamp.
   Future<Category?> createCategory({
@@ -132,9 +145,18 @@ class CategoryController extends AutoDisposeAsyncNotifier<void> {
   }
 
   /// Soft deletes a category by marking `isActive = false`.
+  /// Throws [StateError] if the category is linked to existing transactions.
   Future<void> softDeleteCategory(String id) async {
     state = const AsyncValue.loading();
     try {
+      final transactionDao = ref.read(transactionDaoProvider);
+      final count = await transactionDao.countTransactionsForCategory(id);
+      if (count > 0) {
+        throw StateError(
+          'Cannot delete category linked to $count existing transaction(s)',
+        );
+      }
+
       final dao = ref.read(categoryDaoProvider);
       await dao.softDeleteCategory(id);
       state = const AsyncValue.data(null);

@@ -9,13 +9,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FakeCategoryController extends CategoryController {
-  FakeCategoryController(this.categories, this.onCategoriesChanged);
+  FakeCategoryController(
+    this.categories,
+    this.onCategoriesChanged, {
+    this.transactionCounts = const {},
+  });
 
   final List<Category> categories;
   final VoidCallback onCategoriesChanged;
+  final Map<String, int> transactionCounts;
 
   @override
   Future<void> build() async {}
+
+  @override
+  Future<int> getTransactionCount(String categoryId) async {
+    return transactionCounts[categoryId] ?? 0;
+  }
 
   @override
   Future<Category?> createCategory({
@@ -65,6 +75,12 @@ class FakeCategoryController extends CategoryController {
 
   @override
   Future<void> softDeleteCategory(String id) async {
+    final count = transactionCounts[id] ?? 0;
+    if (count > 0) {
+      throw StateError(
+        'Cannot delete category linked to $count existing transaction(s)',
+      );
+    }
     final index = categories.indexWhere((c) => c.id == id);
     if (index != -1) {
       categories[index] = categories[index].copyWith(isActive: false);
@@ -131,7 +147,10 @@ void main() {
     createdAt: DateTime.utc(2026, 10, 1),
   );
 
-  Widget createTestWidget({List<Category>? initialCats}) {
+  Widget createTestWidget({
+    List<Category>? initialCats,
+    Map<String, int>? transactionCounts,
+  }) {
     final currentCats = initialCats ??
         List.of([
           foodCategory,
@@ -152,7 +171,11 @@ void main() {
     return ProviderScope(
       overrides: [
         categoryControllerProvider.overrideWith(
-          () => FakeCategoryController(currentCats, notify),
+          () => FakeCategoryController(
+            currentCats,
+            notify,
+            transactionCounts: transactionCounts ?? const {},
+          ),
         ),
         categoriesByFilterProvider.overrideWith((ref, filter) {
           return Stream.multi((emitter) {
@@ -177,12 +200,19 @@ void main() {
     );
   }
 
-  Future<void> pumpScreen(WidgetTester tester, {List<Category>? initialCats}) async {
+  Future<void> pumpScreen(
+    WidgetTester tester, {
+    List<Category>? initialCats,
+    Map<String, int>? transactionCounts,
+  }) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(createTestWidget(initialCats: initialCats));
+    await tester.pumpWidget(createTestWidget(
+      initialCats: initialCats,
+      transactionCounts: transactionCounts,
+    ));
     await tester.pumpAndSettle();
   }
 
@@ -345,6 +375,39 @@ void main() {
       await tester.pumpAndSettle();
 
       // Category is restored
+      expect(find.text('Food & Dining'), findsOneWidget);
+    });
+
+    testWidgets('tapping delete on category with existing transactions shows prevention dialog with count and does not delete', (tester) async {
+      await pumpScreen(
+        tester,
+        transactionCounts: {
+          'cat-food': 3,
+        },
+      );
+
+      // Tap delete icon on Food & Dining
+      final deleteButtons = find.byTooltip('Delete');
+      await tester.tap(deleteButtons.first);
+      await tester.pumpAndSettle();
+
+      // Prevention alert dialog appears
+      expect(find.text('Cannot Delete Category'), findsOneWidget);
+      expect(
+        find.text(
+          'Cannot delete "Food & Dining" because it is linked to 3 transactions.\n\n'
+          'Please reassign or delete these transactions before deleting this category.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(FilledButton, 'OK'), findsOneWidget);
+
+      // Dismiss dialog
+      await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+      await tester.pumpAndSettle();
+
+      // Dialog is dismissed and Food & Dining is still visible and active
+      expect(find.text('Cannot Delete Category'), findsNothing);
       expect(find.text('Food & Dining'), findsOneWidget);
     });
   });

@@ -123,6 +123,16 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  /// Counts the total number of transactions linked to a specific category.
+  Future<int> countTransactionsForCategory(String categoryId) async {
+    final countExp = transactions.id.count();
+    final query = selectOnly(transactions)
+      ..where(transactions.categoryId.equals(categoryId))
+      ..addColumns([countExp]);
+    final result = await query.map((row) => row.read(countExp)).getSingle();
+    return result ?? 0;
+  }
+
   /// Calculates total spent (expense only) for a specific category in a date range.
   /// Automatically normalizes [start] and [end] to UTC.
   Future<int> getTotalSpentForCategory(
