@@ -108,7 +108,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: AppRoute.budgetSetup.path,
         name: AppRoute.budgetSetup.name,
-        builder: (context, state) => const BudgetSetupScreen(),
+        builder: (context, state) {
+          final yearMonth = state.uri.queryParameters['yearMonth'];
+          return BudgetSetupScreen(initialYearMonth: yearMonth);
+        },
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
