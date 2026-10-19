@@ -567,6 +567,38 @@ void main() {
       expect(otherMonthLimit, isNull);
     });
 
+    test('getLatestBudgetBefore returns latest budget strictly before yearMonth', () async {
+      await db.budgetDao.insertBudgetWithCategories(
+        BudgetsCompanion(
+          id: const drift.Value('b-2026-05'),
+          yearMonth: const drift.Value('2026-05'),
+          totalLimit: const drift.Value(3000000),
+          createdAt: drift.Value(DateTime.utc(2026, 5, 1)),
+        ),
+        [],
+      );
+      await db.budgetDao.insertBudgetWithCategories(
+        BudgetsCompanion(
+          id: const drift.Value('b-2026-08'),
+          yearMonth: const drift.Value('2026-08'),
+          totalLimit: const drift.Value(4000000),
+          createdAt: drift.Value(DateTime.utc(2026, 8, 1)),
+        ),
+        [],
+      );
+
+      final beforeOct = await db.budgetDao.getLatestBudgetBefore('2026-10');
+      expect(beforeOct, isNotNull);
+      expect(beforeOct!.yearMonth, '2026-08');
+
+      final beforeAug = await db.budgetDao.getLatestBudgetBefore('2026-08');
+      expect(beforeAug, isNotNull);
+      expect(beforeAug!.yearMonth, '2026-05');
+
+      final beforeMay = await db.budgetDao.getLatestBudgetBefore('2026-05');
+      expect(beforeMay, isNull);
+    });
+
     test('unique yearMonth rejects duplicate budget insertion', () async {
       await db.budgetDao.insertBudgetWithCategories(
         BudgetsCompanion(

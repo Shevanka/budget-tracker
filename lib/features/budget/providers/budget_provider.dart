@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/id_generator.dart';
+import '../../../core/utils/year_month_utils.dart';
 import '../../../database/app_database.dart';
 import '../../../database/database_provider.dart';
 import '../domain/models/budget_detail.dart';
@@ -152,6 +153,31 @@ class BudgetController extends AutoDisposeAsyncNotifier<void> {
       rethrow;
     }
   }
+
+  /// Ensures a budget exists for [yearMonth] by copying from previous months if needed.
+  Future<Budget?> ensureBudgetForMonth(
+    String yearMonth, {
+    bool fallbackToLatest = true,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final service = ref.read(budgetServiceProvider);
+      final budget = await service.ensureMonthlyBudgetRollover(
+        yearMonth,
+        fallbackToLatest: fallbackToLatest,
+      );
+      state = const AsyncValue.data(null);
+      return budget;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+
+  /// Ensures a budget exists for the current month on first access.
+  Future<Budget?> ensureCurrentMonthBudget() {
+    return ensureBudgetForMonth(YearMonthUtils.currentYearMonth());
+  }
 }
 
 /// Provider exposing [BudgetController] for budget mutations.
@@ -195,4 +221,19 @@ final categoryBudgetStatusStreamProvider =
   final service = ref.watch(budgetServiceProvider);
   return service.watchCategoryBudgetStatus(params.yearMonth, params.categoryId);
 });
+
+/// Automatically performs monthly budget rollover on first access for [yearMonth] if needed.
+final monthlyBudgetRolloverProvider =
+    FutureProvider.autoDispose.family<Budget?, String>((ref, yearMonth) async {
+  final service = ref.watch(budgetServiceProvider);
+  return service.ensureMonthlyBudgetRollover(yearMonth);
+});
+
+/// Fetches the previous available budget for rollover preview or manual copy.
+final previousAvailableBudgetProvider =
+    FutureProvider.autoDispose.family<Budget?, String>((ref, yearMonth) async {
+  final service = ref.watch(budgetServiceProvider);
+  return service.getPreviousAvailableBudget(yearMonth);
+});
+
 

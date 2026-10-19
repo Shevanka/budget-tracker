@@ -21,6 +21,15 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
         .watchSingleOrNull();
   }
 
+  /// Returns the most recent budget prior to [yearMonth], or `null` if none exists.
+  Future<Budget?> getLatestBudgetBefore(String yearMonth) {
+    return (select(budgets)
+          ..where((tbl) => tbl.yearMonth.isSmallerThanValue(yearMonth))
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.yearMonth)])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   /// Normalizes DateTime fields in [budget] to UTC.
   BudgetsCompanion _normalizeUtc(BudgetsCompanion budget) {
     return budget.copyWith(

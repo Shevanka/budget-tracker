@@ -311,4 +311,78 @@ void main() {
       await expectation;
     });
   });
+
+  group('BudgetService monthly rollover', () {
+    test('getPreviousAvailableBudget returns immediate previous month budget', () async {
+      await seedTestData(); // has budget for 2026-10
+
+      final prev = await budgetService.getPreviousAvailableBudget('2026-11');
+      expect(prev, isNotNull);
+      expect(prev!.yearMonth, '2026-10');
+      expect(prev.totalLimit, 3000000);
+    });
+
+    test('getPreviousAvailableBudget falls back to latest preceding budget when month skipped',
+        () async {
+      await seedTestData(); // has budget for 2026-10
+
+      // Request for 2026-12 (November has no budget, should fall back to October)
+      final prevWithFallback =
+          await budgetService.getPreviousAvailableBudget('2026-12', fallbackToLatest: true);
+      expect(prevWithFallback, isNotNull);
+      expect(prevWithFallback!.yearMonth, '2026-10');
+
+      final prevWithoutFallback =
+          await budgetService.getPreviousAvailableBudget('2026-12', fallbackToLatest: false);
+      expect(prevWithoutFallback, isNull);
+    });
+
+    test('getPreviousAvailableBudget returns null if no earlier budgets exist', () async {
+      await seedTestData(); // earliest budget is 2026-10
+
+      final prev = await budgetService.getPreviousAvailableBudget('2026-09');
+      expect(prev, isNull);
+    });
+
+    test('ensureMonthlyBudgetRollover returns existing budget if already present', () async {
+      await seedTestData(); // has budget for 2026-10 with totalLimit 3,000,000
+
+      final budget = await budgetService.ensureMonthlyBudgetRollover('2026-10');
+      expect(budget, isNotNull);
+      expect(budget!.id, 'b-2026-10');
+      expect(budget.totalLimit, 3000000);
+    });
+
+    test('ensureMonthlyBudgetRollover copies budget and category limits to new month', () async {
+      await seedTestData(); // has budget for 2026-10 with 2 categories: food (1M) and transport (500k)
+
+      // Ensure budget for 2026-11 (currently has no budget)
+      final initialCheck = await db.budgetDao.getBudgetForMonth('2026-11');
+      expect(initialCheck, isNull);
+
+      final rolledOver = await budgetService.ensureMonthlyBudgetRollover('2026-11');
+      expect(rolledOver, isNotNull);
+      expect(rolledOver!.yearMonth, '2026-11');
+      expect(rolledOver.totalLimit, 3000000);
+
+      // Verify category limits were copied with new IDs
+      final limits = await db.budgetDao.getBudgetCategories(rolledOver.id);
+      expect(limits.length, 2);
+
+      final foodLimit = limits.firstWhere((c) => c.categoryId == 'cat-food');
+      expect(foodLimit.limitAmount, 1000000);
+      expect(foodLimit.id, isNot('bc-food')); // Fresh UUID
+
+      final transportLimit = limits.firstWhere((c) => c.categoryId == 'cat-transport');
+      expect(transportLimit.limitAmount, 500000);
+      expect(transportLimit.id, isNot('bc-transport'));
+    });
+
+    test('ensureMonthlyBudgetRollover returns null when no previous budget exists', () async {
+      // 2026-08 has no previous budget in seed data
+      final result = await budgetService.ensureMonthlyBudgetRollover('2026-08');
+      expect(result, isNull);
+    });
+  });
 }
+

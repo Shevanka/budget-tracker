@@ -13,12 +13,16 @@ class MonthlyBudgetCard extends StatelessWidget {
   final MonthlyBudgetStatus status;
   final VoidCallback? onSetupBudget;
   final VoidCallback? onManageBudget;
+  final VoidCallback? onCopyPreviousBudget;
+  final String? previousMonthDisplay;
 
   const MonthlyBudgetCard({
     super.key,
     required this.status,
     this.onSetupBudget,
     this.onManageBudget,
+    this.onCopyPreviousBudget,
+    this.previousMonthDisplay,
   });
 
   Color _resolveStatusColor(BuildContext context, BudgetStatusLevel level) {
@@ -86,10 +90,27 @@ class MonthlyBudgetCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: onSetupBudget ?? onManageBudget,
-                icon: const Icon(Icons.add),
-                label: const Text('Set Up Budget'),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (onCopyPreviousBudget != null)
+                    FilledButton.tonalIcon(
+                      onPressed: onCopyPreviousBudget,
+                      icon: const Icon(Icons.history),
+                      label: Text(
+                        previousMonthDisplay != null
+                            ? 'Copy $previousMonthDisplay'
+                            : 'Copy Last Month',
+                      ),
+                    ),
+                  FilledButton.icon(
+                    onPressed: onSetupBudget ?? onManageBudget,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Set Up Budget'),
+                  ),
+                ],
               ),
             ],
           ),

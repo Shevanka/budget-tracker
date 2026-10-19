@@ -234,5 +234,50 @@ void main() {
       expect(catStatusStream!.spent, 500000);
     });
   });
+
+  group('BudgetController rollover & rollover providers', () {
+    test('ensureBudgetForMonth rolls over budget from previous month', () async {
+      final controller = container.read(budgetControllerProvider.notifier);
+      await controller.saveBudget(
+        yearMonth: '2026-10',
+        totalLimit: 5000000,
+        categoryLimits: {
+          'cat-food': 2000000,
+        },
+      );
+
+      final rolledOver = await controller.ensureBudgetForMonth('2026-11');
+      expect(rolledOver, isNotNull);
+      expect(rolledOver!.yearMonth, '2026-11');
+      expect(rolledOver.totalLimit, 5000000);
+
+      // Subsequent access returns the existing budget
+      final cached = await controller.ensureBudgetForMonth('2026-11');
+      expect(cached!.id, rolledOver.id);
+    });
+
+    test('monthlyBudgetRolloverProvider and previousAvailableBudgetProvider work as expected', () async {
+      final controller = container.read(budgetControllerProvider.notifier);
+      await controller.saveBudget(
+        yearMonth: '2026-10',
+        totalLimit: 4000000,
+        categoryLimits: {
+          'cat-food': 1500000,
+        },
+      );
+
+      final prev =
+          await container.read(previousAvailableBudgetProvider('2026-11').future);
+      expect(prev, isNotNull);
+      expect(prev!.yearMonth, '2026-10');
+
+      final rolledOver =
+          await container.read(monthlyBudgetRolloverProvider('2026-11').future);
+      expect(rolledOver, isNotNull);
+      expect(rolledOver!.yearMonth, '2026-11');
+      expect(rolledOver.totalLimit, 4000000);
+    });
+  });
 }
+
 

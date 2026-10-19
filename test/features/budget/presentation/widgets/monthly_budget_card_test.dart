@@ -110,5 +110,35 @@ void main() {
       await tester.tap(setupButton);
       expect(setupTapped, isTrue);
     });
+
+    testWidgets('renders Copy Last Month button when onCopyPreviousBudget is provided',
+        (tester) async {
+      final status = MonthlyBudgetStatus.calculate(
+        yearMonth: '2026-10',
+        totalLimit: 0,
+        totalSpent: 0,
+        categoryStatuses: [],
+        unbudgetedSpent: 0,
+      );
+
+      var copyTapped = false;
+
+      await tester.pumpWidget(
+        buildTestableWidget(
+          MonthlyBudgetCard(
+            status: status,
+            onCopyPreviousBudget: () => copyTapped = true,
+            previousMonthDisplay: 'September 2026',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final copyButton = find.text('Copy September 2026');
+      expect(copyButton, findsOneWidget);
+      await tester.tap(copyButton);
+      expect(copyTapped, isTrue);
+    });
   });
 }
+

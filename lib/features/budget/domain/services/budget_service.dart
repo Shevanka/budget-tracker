@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../../../core/utils/id_generator.dart';
 import '../../../../core/utils/year_month_utils.dart';
 import '../../../../database/app_database.dart';
 import '../../../../database/daos/budget_dao.dart';
@@ -216,4 +217,67 @@ class BudgetService {
       };
     }).distinct();
   }
+
+  /// Finds the preceding budget that can be rolled over to [yearMonth].
+  ///
+  /// First checks the immediate previous month (`YearMonthUtils.previousYearMonth(yearMonth)`).
+  /// If none exists and [fallbackToLatest] is `true`, checks the most recent budget prior to [yearMonth].
+  Future<Budget?> getPreviousAvailableBudget(
+    String yearMonth, {
+    bool fallbackToLatest = true,
+  }) async {
+    final prevMonth = YearMonthUtils.previousYearMonth(yearMonth);
+    final prevBudget = await _budgetDao.getBudgetForMonth(prevMonth);
+    if (prevBudget != null) {
+      return prevBudget;
+    }
+
+    if (fallbackToLatest) {
+      return _budgetDao.getLatestBudgetBefore(yearMonth);
+    }
+    return null;
+  }
+
+  /// Ensures a budget exists for [yearMonth] by copying the previous month's budget
+  /// (or the most recent preceding budget) if no budget currently exists.
+  ///
+  /// Rollover rules:
+  /// 1. If a budget already exists for [yearMonth], returns the existing budget immediately.
+  /// 2. If no budget exists, finds the previous available budget via [getPreviousAvailableBudget].
+  /// 3. If a previous budget is found, duplicates its totalLimit and all category limits
+  ///    under new UUIDs with UTC timestamp for [yearMonth].
+  /// 4. Returns the newly rolled-over [Budget], or `null` if no preceding budget is available.
+  Future<Budget?> ensureMonthlyBudgetRollover(
+    String yearMonth, {
+    bool fallbackToLatest = true,
+  }) async {
+    final existingBudget = await _budgetDao.getBudgetForMonth(yearMonth);
+    if (existingBudget != null) {
+      return existingBudget;
+    }
+
+    final sourceBudget = await getPreviousAvailableBudget(
+      yearMonth,
+      fallbackToLatest: fallbackToLatest,
+    );
+
+    if (sourceBudget == null) {
+      return null;
+    }
+
+    final newBudgetId = IdGenerator.generate();
+    final success = await _budgetDao.copyBudget(
+      fromYearMonth: sourceBudget.yearMonth,
+      toYearMonth: yearMonth,
+      newBudgetId: newBudgetId,
+      newCategoryLimitId: () => IdGenerator.generate(),
+      createdAt: DateTime.now().toUtc(),
+    );
+
+    if (success) {
+      return _budgetDao.getBudgetForMonth(yearMonth);
+    }
+    return null;
+  }
 }
+
