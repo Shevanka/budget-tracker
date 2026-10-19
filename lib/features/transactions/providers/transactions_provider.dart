@@ -68,7 +68,7 @@ class TransactionController extends AutoDisposeAsyncNotifier<void> {
       );
       await dao.insertTransaction(entry);
       state = const AsyncValue.data(null);
-      return dao.getTransactionById(id);
+      return await dao.getTransactionById(id);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       return null;

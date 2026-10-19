@@ -5,6 +5,8 @@ import '../../../core/utils/id_generator.dart';
 import '../../../database/app_database.dart';
 import '../../../database/database_provider.dart';
 import '../domain/models/budget_detail.dart';
+import '../domain/models/budget_status.dart';
+import '../domain/services/budget_service.dart';
 
 /// Reactive stream of the monthly [Budget] for a specific [yearMonth] ('YYYY-MM').
 final budgetForMonthProvider =
@@ -157,3 +159,40 @@ final budgetControllerProvider =
     AutoDisposeAsyncNotifierProvider<BudgetController, void>(
   BudgetController.new,
 );
+
+/// Provider for [BudgetService].
+final budgetServiceProvider = Provider<BudgetService>((ref) {
+  return BudgetService(
+    budgetDao: ref.watch(budgetDaoProvider),
+    transactionDao: ref.watch(transactionDaoProvider),
+    categoryDao: ref.watch(categoryDaoProvider),
+  );
+});
+
+/// Reactive stream of complete [MonthlyBudgetStatus] for [yearMonth],
+/// including total budget, total spent, and category-level calculations.
+final monthlyBudgetStatusProvider =
+    StreamProvider.autoDispose.family<MonthlyBudgetStatus, String>((ref, yearMonth) {
+  final service = ref.watch(budgetServiceProvider);
+  return service.watchMonthlyBudgetStatus(yearMonth);
+});
+
+/// Parameter record for fetching an individual category's budget status.
+typedef CategoryBudgetParams = ({String yearMonth, String categoryId});
+
+/// Fetches [CategoryBudgetStatus] for a single category in [yearMonth].
+final categoryBudgetStatusProvider =
+    FutureProvider.autoDispose.family<CategoryBudgetStatus?, CategoryBudgetParams>(
+        (ref, params) {
+  final service = ref.watch(budgetServiceProvider);
+  return service.getCategoryBudgetStatus(params.yearMonth, params.categoryId);
+});
+
+/// Streams [CategoryBudgetStatus] for a single category in [yearMonth].
+final categoryBudgetStatusStreamProvider =
+    StreamProvider.autoDispose.family<CategoryBudgetStatus?, CategoryBudgetParams>(
+        (ref, params) {
+  final service = ref.watch(budgetServiceProvider);
+  return service.watchCategoryBudgetStatus(params.yearMonth, params.categoryId);
+});
+

@@ -174,6 +174,98 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
     return result ?? 0;
   }
 
+  /// Streams total spent (all expenses) in a date range.
+  Stream<int> watchTotalSpent(DateTime start, DateTime end) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.type.equalsValue(TransactionType.expense) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..addColumns([sumExp]);
+
+    return query.watch().map((rows) {
+      if (rows.isEmpty) return 0;
+      return rows.first.read(sumExp) ?? 0;
+    });
+  }
+
+  /// Streams total spent for a specific category in a date range.
+  Stream<int> watchTotalSpentForCategory(
+    String categoryId,
+    DateTime start,
+    DateTime end,
+  ) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.categoryId.equals(categoryId) &
+            transactions.type.equalsValue(TransactionType.expense) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..addColumns([sumExp]);
+
+    return query.watch().map((rows) {
+      if (rows.isEmpty) return 0;
+      return rows.first.read(sumExp) ?? 0;
+    });
+  }
+
+  /// Calculates total expenses grouped by category ID in a date range.
+  Future<Map<String, int>> getCategoryExpensesByDateRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.type.equalsValue(TransactionType.expense) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..groupBy([transactions.categoryId])
+      ..addColumns([transactions.categoryId, sumExp]);
+
+    final rows = await query.get();
+    return {
+      for (final row in rows)
+        row.read(transactions.categoryId)!: row.read(sumExp) ?? 0,
+    };
+  }
+
+  /// Streams total expenses grouped by category ID in a date range.
+  Stream<Map<String, int>> watchCategoryExpensesByDateRange(
+    DateTime start,
+    DateTime end,
+  ) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.type.equalsValue(TransactionType.expense) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..groupBy([transactions.categoryId])
+      ..addColumns([transactions.categoryId, sumExp]);
+
+    return query.watch().map((rows) {
+      return {
+        for (final row in rows)
+          row.read(transactions.categoryId)!: row.read(sumExp) ?? 0,
+      };
+    });
+  }
+
   /// Calculates total income in a date range.
   /// Automatically normalizes [start] and [end] to UTC.
   Future<int> getTotalIncome(DateTime start, DateTime end) async {

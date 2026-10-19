@@ -4,6 +4,8 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
+    - build/**
+    - android/**
   errors:
     invalid_annotation_target: ignore
   
@@ -30,5 +32,4 @@ linter:
     sort_pub_dependencies: true
     
     # Documentation
-    package_api_docs: false
     public_member_api_docs: false

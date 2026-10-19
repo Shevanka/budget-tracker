@@ -77,6 +77,20 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
         .watch();
   }
 
+  /// Fetches the limit amount for a specific category in [yearMonth].
+  /// Returns `null` if no budget exists for the month or no limit is set for the category.
+  Future<int?> getCategoryLimit(String yearMonth, String categoryId) async {
+    final budget = await getBudgetForMonth(yearMonth);
+    if (budget == null) return null;
+
+    final query = select(budgetCategories)
+      ..where((tbl) =>
+          tbl.budgetId.equals(budget.id) &
+          tbl.categoryId.equals(categoryId));
+    final result = await query.getSingleOrNull();
+    return result?.limitAmount;
+  }
+
   /// Copies budget limits from [fromYearMonth] to [toYearMonth] (monthly rollover).
   /// Returns `true` if successfully copied, `false` if source not found or target already exists.
   Future<bool> copyBudget({

@@ -100,7 +100,7 @@ class CategoryController extends AutoDisposeAsyncNotifier<void> {
 
       await dao.insertCategory(entry);
       state = const AsyncValue.data(null);
-      return dao.getCategoryById(id);
+      return await dao.getCategoryById(id);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;

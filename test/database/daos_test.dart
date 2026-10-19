@@ -271,6 +271,21 @@ void main() {
 
       final transportSpent = await db.transactionDao.getTotalSpentForCategory('cat-transport', start, end);
       expect(transportSpent, 25000);
+
+      final categoryExpenses = await db.transactionDao.getCategoryExpensesByDateRange(start, end);
+      expect(categoryExpenses['cat-food'], 125000);
+      expect(categoryExpenses['cat-transport'], 25000);
+      expect(categoryExpenses.length, 2);
+
+      final totalSpentStreamVal = await db.transactionDao.watchTotalSpent(start, end).first;
+      expect(totalSpentStreamVal, 150000);
+
+      final catSpentStreamVal = await db.transactionDao.watchTotalSpentForCategory('cat-food', start, end).first;
+      expect(catSpentStreamVal, 125000);
+
+      final catExpensesStreamVal = await db.transactionDao.watchCategoryExpensesByDateRange(start, end).first;
+      expect(catExpensesStreamVal['cat-food'], 125000);
+      expect(catExpensesStreamVal['cat-transport'], 25000);
     });
 
     test('watchRecentTransactions returns up to limit in descending order', () async {
@@ -523,6 +538,33 @@ void main() {
       expect(nextMonthLimits.length, 1);
       expect(nextMonthLimits.first.categoryId, 'cat-food');
       expect(nextMonthLimits.first.limitAmount, 1500000);
+    });
+
+    test('getCategoryLimit returns limit for existing category or null if not set', () async {
+      final budget = BudgetsCompanion(
+        id: const drift.Value('b-2026-10'),
+        yearMonth: const drift.Value('2026-10'),
+        totalLimit: const drift.Value(2000000),
+        createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+      );
+      final categories = [
+        const BudgetCategoriesCompanion(
+          id: drift.Value('bc-food'),
+          budgetId: drift.Value('b-2026-10'),
+          categoryId: drift.Value('cat-food'),
+          limitAmount: drift.Value(800000),
+        ),
+      ];
+      await db.budgetDao.insertBudgetWithCategories(budget, categories);
+
+      final foodLimit = await db.budgetDao.getCategoryLimit('2026-10', 'cat-food');
+      expect(foodLimit, 800000);
+
+      final otherLimit = await db.budgetDao.getCategoryLimit('2026-10', 'cat-transport');
+      expect(otherLimit, isNull);
+
+      final otherMonthLimit = await db.budgetDao.getCategoryLimit('2026-11', 'cat-food');
+      expect(otherMonthLimit, isNull);
     });
 
     test('unique yearMonth rejects duplicate budget insertion', () async {
