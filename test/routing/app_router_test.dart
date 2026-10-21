@@ -3,7 +3,9 @@ import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/database_provider.dart';
 import 'package:budget_tracker/features/categories/presentation/screens/category_manager_screen.dart';
 import 'package:budget_tracker/features/categories/providers/categories_provider.dart';
+import 'package:budget_tracker/features/dashboard/domain/models/financial_summary.dart';
 import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:budget_tracker/features/dashboard/providers/dashboard_provider.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/add_edit_transaction_screen.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/transactions_screen.dart';
 import 'package:budget_tracker/features/transactions/providers/transactions_provider.dart';
@@ -43,6 +45,16 @@ void main() {
         transactionByIdProvider.overrideWith(
           (ref, id) => Future.value(null),
         ),
+        monthlyFinancialSummaryProvider.overrideWith(
+          (ref, month) => Stream.value(
+            MonthlyFinancialSummary(
+              yearMonth: month,
+              totalIncome: 0,
+              totalExpense: 0,
+              netBalance: 0,
+            ),
+          ),
+        ),
       ],
       child: const BudgetTrackerApp(),
     );
@@ -53,7 +65,7 @@ void main() {
       await tester.pumpWidget(createTestApp());
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard Overview'), findsOneWidget);
+      expect(find.text('Net Balance'), findsOneWidget);
 
       await tester.tap(find.text('Transactions'));
       await tester.pumpAndSettle();

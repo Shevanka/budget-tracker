@@ -284,6 +284,43 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
     return result ?? 0;
   }
 
+  /// Streams total income (all income transactions) in a date range.
+  Stream<int> watchTotalIncome(DateTime start, DateTime end) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.type.equalsValue(TransactionType.income) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..addColumns([sumExp]);
+
+    return query.watch().map((rows) {
+      if (rows.isEmpty) return 0;
+      return rows.first.read(sumExp) ?? 0;
+    });
+  }
+
+  /// Streams total count of transactions in a date range.
+  Stream<int> watchTransactionCountByDateRange(DateTime start, DateTime end) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final countExp = transactions.id.count();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..addColumns([countExp]);
+
+    return query.watch().map((rows) {
+      if (rows.isEmpty) return 0;
+      return rows.first.read(countExp) ?? 0;
+    });
+  }
+
   /// Streams transactions joined with their categories, ordered by date descending.
   Stream<List<TransactionWithCategory>> watchTransactionsWithCategory() {
     final query = select(transactions).join([
