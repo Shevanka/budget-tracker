@@ -86,3 +86,31 @@ final currentDashboardSummaryProvider =
   final dao = ref.watch(transactionDaoProvider);
   return _watchFinancialSummary(dao, selectedMonth);
 });
+
+/// Streams up to 5 most recent transactions joined with their categories for a given [yearMonth].
+final recentTransactionsForMonthProvider =
+    StreamProvider.autoDispose.family<List<TransactionWithCategory>, String>(
+        (ref, yearMonth) {
+  final dao = ref.watch(transactionDaoProvider);
+  final start = YearMonthUtils.getStartOfMonth(yearMonth);
+  final end = YearMonthUtils.getEndOfMonth(yearMonth);
+  return dao.watchRecentTransactionsWithCategoryByDateRange(
+    start,
+    end,
+    limit: 5,
+  );
+});
+
+/// Streams up to 5 most recent transactions for the currently selected dashboard month.
+final currentDashboardRecentTransactionsProvider =
+    StreamProvider.autoDispose<List<TransactionWithCategory>>((ref) {
+  final selectedMonth = ref.watch(selectedDashboardMonthProvider);
+  final dao = ref.watch(transactionDaoProvider);
+  final start = YearMonthUtils.getStartOfMonth(selectedMonth);
+  final end = YearMonthUtils.getEndOfMonth(selectedMonth);
+  return dao.watchRecentTransactionsWithCategoryByDateRange(
+    start,
+    end,
+    limit: 5,
+  );
+});

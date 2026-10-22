@@ -2,6 +2,7 @@ import 'package:budget_tracker/core/theme/app_theme.dart';
 import 'package:budget_tracker/core/utils/year_month_utils.dart';
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/converters/transaction_type.dart';
+import 'package:budget_tracker/database/daos/transaction_dao.dart';
 import 'package:budget_tracker/features/budget/domain/models/budget_status.dart';
 import 'package:budget_tracker/features/budget/presentation/widgets/monthly_budget_card.dart';
 import 'package:budget_tracker/features/budget/providers/budget_provider.dart';
@@ -84,14 +85,35 @@ void main() {
     ),
   };
 
+  final mockRecentTransactions = <String, List<TransactionWithCategory>>{
+    currentMonth: [
+      TransactionWithCategory(
+        transaction: Transaction(
+          id: 'tx-1',
+          amount: 50000,
+          type: TransactionType.expense,
+          categoryId: 'cat-food',
+          source: 'Cash',
+          note: 'Dinner',
+          date: DateTime.utc(2026, 10, 15, 19, 0),
+          createdAt: DateTime.utc(2026, 10, 15, 19, 0),
+        ),
+        category: testCategory,
+      ),
+    ],
+    prevMonth: [],
+  };
+
   Widget createTestWidget({
     Map<String, MonthlyFinancialSummary>? summaries,
     Map<String, MonthlyBudgetStatus>? budgetStatuses,
+    Map<String, List<TransactionWithCategory>>? recentTransactions,
     Stream<MonthlyFinancialSummary>? summaryStreamOverride,
     List<Override> additionalOverrides = const [],
   }) {
     final activeSummaries = summaries ?? mockSummaries;
     final activeBudgetStatuses = budgetStatuses ?? mockBudgetStatuses;
+    final activeRecent = recentTransactions ?? mockRecentTransactions;
 
     final router = GoRouter(
       initialLocation: AppRoute.dashboard.path,
@@ -99,6 +121,12 @@ void main() {
         GoRoute(
           path: AppRoute.dashboard.path,
           builder: (context, state) => const DashboardScreen(),
+        ),
+        GoRoute(
+          path: AppRoute.transactions.path,
+          builder: (context, state) => const Scaffold(
+            body: Text('Transactions Target Screen'),
+          ),
         ),
         GoRoute(
           path: AppRoute.addTransaction.path,
@@ -160,6 +188,9 @@ void main() {
         previousAvailableBudgetProvider.overrideWith(
           (ref, month) => Future.value(null),
         ),
+        recentTransactionsForMonthProvider.overrideWith(
+          (ref, month) => Stream.value(activeRecent[month] ?? []),
+        ),
         ...additionalOverrides,
       ],
       child: MaterialApp.router(
@@ -171,7 +202,7 @@ void main() {
 
   group('DashboardScreen Presentation', () {
     testWidgets(
-        'renders month selector, net balance card, income/expense summaries, and budget progress section',
+        'renders month selector, net balance card, income/expense summaries, budget progress, and recent transactions',
         (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
@@ -199,10 +230,19 @@ void main() {
       expect(find.text('of Rp 5.000.000'), findsOneWidget);
       expect(find.text('30%'), findsOneWidget);
       expect(find.text('Category Budgets'), findsOneWidget);
-      expect(find.text('Food & Dining'), findsOneWidget);
+      expect(find.text('Food & Dining'), findsWidgets);
+
+      // Recent Transactions Section
+      expect(find.byType(DashboardRecentTransactions), findsOneWidget);
+      expect(find.text('Recent Transactions'), findsOneWidget);
+      expect(find.text('Dinner'), findsOneWidget);
+      expect(find.text('-Rp 50.000'), findsOneWidget);
+      expect(find.text('See All Transactions'), findsOneWidget);
 
       // Quick Action Buttons & FAB
-      expect(find.text('Add Transaction'), findsOneWidget);
+      final addButton = find.text('Add Transaction');
+      await tester.ensureVisible(addButton);
+      expect(addButton, findsOneWidget);
       expect(find.text('Setup Budget'), findsOneWidget);
       expect(find.byType(FloatingActionButton), findsOneWidget);
     });
@@ -239,7 +279,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap "Add Transaction" quick action button
-      final addButton = find.text('Add Transaction');
+      final addButton = find.widgetWithText(FilledButton, 'Add Transaction');
       await tester.ensureVisible(addButton);
       await tester.tap(addButton);
       await tester.pumpAndSettle();
@@ -257,6 +297,18 @@ void main() {
       await tester.tap(setupButton);
       await tester.pumpAndSettle();
       expect(find.text('Budget Setup Target Screen'), findsOneWidget);
+    });
+
+    testWidgets('recent transactions See All button navigates to transactions tab',
+        (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      final seeAllButton = find.text('See All');
+      await tester.ensureVisible(seeAllButton);
+      await tester.tap(seeAllButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Transactions Target Screen'), findsOneWidget);
     });
 
     testWidgets('budget progress Manage button navigates to budget setup screen',

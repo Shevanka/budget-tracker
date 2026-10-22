@@ -368,6 +368,82 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
       }).toList();
     });
   }
+
+  /// Streams recent transactions joined with their categories in a date range,
+  /// ordered by date descending, then createdAt descending, limited to [limit] items.
+  Stream<List<TransactionWithCategory>> watchRecentTransactionsWithCategoryByDateRange(
+    DateTime start,
+    DateTime end, {
+    int limit = 5,
+  }) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    query.where(
+      transactions.date.isBiggerOrEqualValue(startUtc) &
+          transactions.date.isSmallerOrEqualValue(endUtc),
+    );
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    query.limit(limit);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
+
+  /// Fetches recent transactions joined with their categories in a date range,
+  /// ordered by date descending, then createdAt descending, limited to [limit] items.
+  Future<List<TransactionWithCategory>> getRecentTransactionsWithCategoryByDateRange(
+    DateTime start,
+    DateTime end, {
+    int limit = 5,
+  }) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    query.where(
+      transactions.date.isBiggerOrEqualValue(startUtc) &
+          transactions.date.isSmallerOrEqualValue(endUtc),
+    );
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    query.limit(limit);
+
+    return query.get().then((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
 }
 
 /// A transaction combined with its optional joined [Category].

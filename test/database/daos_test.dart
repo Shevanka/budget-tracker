@@ -309,6 +309,52 @@ void main() {
       expect(recent.last.id, 'tx-3');
     });
 
+    test('watchRecentTransactionsWithCategoryByDateRange returns up to limit in date range', () async {
+      final start = DateTime.utc(2026, 10, 1);
+      final end = DateTime.utc(2026, 10, 31, 23, 59, 59);
+
+      for (int i = 1; i <= 7; i++) {
+        await db.transactionDao.insertTransaction(
+          TransactionsCompanion(
+            id: drift.Value('tx-range-$i'),
+            amount: drift.Value(i * 15000),
+            type: const drift.Value(TransactionType.expense),
+            categoryId: const drift.Value('cat-food'),
+            source: const drift.Value('Cash'),
+            date: drift.Value(DateTime.utc(2026, 10, i)),
+            createdAt: drift.Value(DateTime.utc(2026, 10, i)),
+          ),
+        );
+      }
+
+      // Add one transaction in September (outside range)
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-sep'),
+          amount: const drift.Value(50000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('Cash'),
+          date: drift.Value(DateTime.utc(2026, 9, 30)),
+          createdAt: drift.Value(DateTime.utc(2026, 9, 30)),
+        ),
+      );
+
+      final recentWithCat = await db.transactionDao
+          .watchRecentTransactionsWithCategoryByDateRange(start, end, limit: 5)
+          .first;
+
+      expect(recentWithCat.length, 5);
+      expect(recentWithCat.first.transaction.id, 'tx-range-7');
+      expect(recentWithCat.last.transaction.id, 'tx-range-3');
+      expect(recentWithCat.first.category?.name, 'Food');
+
+      final getRecentWithCat = await db.transactionDao
+          .getRecentTransactionsWithCategoryByDateRange(start, end, limit: 5);
+      expect(getRecentWithCat.length, 5);
+      expect(getRecentWithCat.first.transaction.id, 'tx-range-7');
+    });
+
     test('rejects non-positive amount (amount <= 0) via CHECK constraint', () async {
       expect(
         () => db.transactionDao.insertTransaction(

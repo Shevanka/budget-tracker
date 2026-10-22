@@ -75,6 +75,9 @@ void main() {
         previousAvailableBudgetProvider.overrideWith(
           (ref, month) => Future.value(null),
         ),
+        recentTransactionsForMonthProvider.overrideWith(
+          (ref, month) => Stream.value([]),
+        ),
       ],
       child: const BudgetTrackerApp(),
     );

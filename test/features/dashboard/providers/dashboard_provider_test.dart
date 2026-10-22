@@ -126,4 +126,36 @@ void main() {
       expect(summary.hasActivity, isTrue);
     });
   });
+
+  group('recentTransactionsForMonthProvider', () {
+    test('emits empty list when no transactions exist', () async {
+      final recent =
+          await container.read(recentTransactionsForMonthProvider('2026-10').future);
+      expect(recent, isEmpty);
+    });
+
+    test('emits up to 5 transactions in descending date order for the month', () async {
+      for (int i = 1; i <= 6; i++) {
+        await db.transactionDao.insertTransaction(
+          TransactionsCompanion(
+            id: drift.Value('tx-recent-$i'),
+            amount: drift.Value(i * 10000),
+            type: const drift.Value(TransactionType.expense),
+            categoryId: const drift.Value('cat-1'),
+            source: const drift.Value('BCA'),
+            date: drift.Value(DateTime.utc(2026, 10, i, 10, 0)),
+            createdAt: drift.Value(DateTime.utc(2026, 10, i, 10, 0)),
+          ),
+        );
+      }
+
+      final recent =
+          await container.read(recentTransactionsForMonthProvider('2026-10').future);
+
+      expect(recent.length, 5);
+      expect(recent.first.transaction.id, 'tx-recent-6');
+      expect(recent.last.transaction.id, 'tx-recent-2');
+      expect(recent.first.category?.name, 'General');
+    });
+  });
 }

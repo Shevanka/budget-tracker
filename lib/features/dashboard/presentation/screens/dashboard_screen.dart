@@ -57,6 +57,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ref.invalidate(monthlyFinancialSummaryProvider(selectedMonth));
           ref.invalidate(monthlyBudgetStatusProvider(selectedMonth));
           ref.invalidate(previousAvailableBudgetProvider(selectedMonth));
+          ref.invalidate(recentTransactionsForMonthProvider(selectedMonth));
           await ref
               .read(budgetControllerProvider.notifier)
               .ensureBudgetForMonth(selectedMonth);
@@ -124,6 +125,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               // Budget Progress Section
               DashboardBudgetSection(selectedYearMonth: selectedMonth),
+
+              const SizedBox(height: 20),
+
+              // Recent Transactions Section
+              DashboardRecentTransactions(selectedYearMonth: selectedMonth),
 
               const SizedBox(height: 24),
 
