@@ -1,6 +1,8 @@
 import 'package:budget_tracker/app.dart';
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/database_provider.dart';
+import 'package:budget_tracker/features/budget/domain/models/budget_status.dart';
+import 'package:budget_tracker/features/budget/providers/budget_provider.dart';
 import 'package:budget_tracker/features/dashboard/domain/models/financial_summary.dart';
 import 'package:budget_tracker/features/dashboard/providers/dashboard_provider.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +28,24 @@ void main() {
                 netBalance: 0,
               ),
             ),
+          ),
+          monthlyBudgetStatusProvider.overrideWith(
+            (ref, month) => Stream.value(
+              MonthlyBudgetStatus(
+                yearMonth: month,
+                totalLimit: 0,
+                totalSpent: 0,
+                totalRemaining: 0,
+                percentage: 0,
+                ratio: 0.0,
+                statusLevel: BudgetStatusLevel.safe,
+                categoryStatuses: const [],
+                unbudgetedSpent: 0,
+              ),
+            ),
+          ),
+          previousAvailableBudgetProvider.overrideWith(
+            (ref, month) => Future.value(null),
           ),
         ],
         child: const BudgetTrackerApp(),

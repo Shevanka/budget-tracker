@@ -55,6 +55,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(monthlyFinancialSummaryProvider(selectedMonth));
+          ref.invalidate(monthlyBudgetStatusProvider(selectedMonth));
+          ref.invalidate(previousAvailableBudgetProvider(selectedMonth));
           await ref
               .read(budgetControllerProvider.notifier)
               .ensureBudgetForMonth(selectedMonth);
@@ -117,6 +119,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ],
                 ),
               ),
+
+              const SizedBox(height: 20),
+
+              // Budget Progress Section
+              DashboardBudgetSection(selectedYearMonth: selectedMonth),
 
               const SizedBox(height: 24),
 

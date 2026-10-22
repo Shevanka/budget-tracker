@@ -1,6 +1,9 @@
 import 'package:budget_tracker/core/theme/app_theme.dart';
 import 'package:budget_tracker/core/utils/year_month_utils.dart';
 import 'package:budget_tracker/database/app_database.dart';
+import 'package:budget_tracker/database/converters/transaction_type.dart';
+import 'package:budget_tracker/features/budget/domain/models/budget_status.dart';
+import 'package:budget_tracker/features/budget/presentation/widgets/monthly_budget_card.dart';
 import 'package:budget_tracker/features/budget/providers/budget_provider.dart';
 import 'package:budget_tracker/features/dashboard/domain/models/financial_summary.dart';
 import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
@@ -29,6 +32,18 @@ void main() {
   final currentMonth = YearMonthUtils.currentYearMonth();
   final prevMonth = YearMonthUtils.previousYearMonth(currentMonth);
 
+  final testCategory = Category(
+    id: 'cat-food',
+    name: 'Food & Dining',
+    icon: 'restaurant',
+    color: 0xFF43A047,
+    type: TransactionType.expense,
+    isDefault: true,
+    isActive: true,
+    sortOrder: 0,
+    createdAt: DateTime.utc(2026, 1, 1),
+  );
+
   final mockSummaries = <String, MonthlyFinancialSummary>{
     currentMonth: MonthlyFinancialSummary(
       yearMonth: currentMonth,
@@ -46,12 +61,37 @@ void main() {
     ),
   };
 
+  final mockBudgetStatuses = <String, MonthlyBudgetStatus>{
+    currentMonth: MonthlyBudgetStatus.calculate(
+      yearMonth: currentMonth,
+      totalLimit: 5000000,
+      totalSpent: 1500000,
+      categoryStatuses: [
+        CategoryBudgetStatus.calculate(
+          category: testCategory,
+          limit: 2000000,
+          spent: 800000,
+        ),
+      ],
+      unbudgetedSpent: 700000,
+    ),
+    prevMonth: MonthlyBudgetStatus.calculate(
+      yearMonth: prevMonth,
+      totalLimit: 4000000,
+      totalSpent: 1000000,
+      categoryStatuses: const [],
+      unbudgetedSpent: 1000000,
+    ),
+  };
+
   Widget createTestWidget({
     Map<String, MonthlyFinancialSummary>? summaries,
+    Map<String, MonthlyBudgetStatus>? budgetStatuses,
     Stream<MonthlyFinancialSummary>? summaryStreamOverride,
     List<Override> additionalOverrides = const [],
   }) {
     final activeSummaries = summaries ?? mockSummaries;
+    final activeBudgetStatuses = budgetStatuses ?? mockBudgetStatuses;
 
     final router = GoRouter(
       initialLocation: AppRoute.dashboard.path,
@@ -101,6 +141,25 @@ void main() {
                   ),
             ),
           ),
+        monthlyBudgetStatusProvider.overrideWith(
+          (ref, month) => Stream.value(
+            activeBudgetStatuses[month] ??
+                MonthlyBudgetStatus(
+                  yearMonth: month,
+                  totalLimit: 0,
+                  totalSpent: 0,
+                  totalRemaining: 0,
+                  percentage: 0,
+                  ratio: 0.0,
+                  statusLevel: BudgetStatusLevel.safe,
+                  categoryStatuses: const [],
+                  unbudgetedSpent: 0,
+                ),
+          ),
+        ),
+        previousAvailableBudgetProvider.overrideWith(
+          (ref, month) => Future.value(null),
+        ),
         ...additionalOverrides,
       ],
       child: MaterialApp.router(
@@ -111,7 +170,8 @@ void main() {
   }
 
   group('DashboardScreen Presentation', () {
-    testWidgets('renders month selector, net balance card, and income/expense summaries',
+    testWidgets(
+        'renders month selector, net balance card, income/expense summaries, and budget progress section',
         (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
@@ -130,7 +190,16 @@ void main() {
       // Income & Expense Summaries
       expect(find.byType(IncomeExpenseSummaryCard), findsOneWidget);
       expect(find.text('Rp 5.000.000'), findsOneWidget);
-      expect(find.text('Rp 1.500.000'), findsOneWidget);
+      expect(find.text('Rp 1.500.000'), findsWidgets);
+
+      // Budget Progress Section
+      expect(find.byType(DashboardBudgetSection), findsOneWidget);
+      expect(find.text('Budget Progress'), findsOneWidget);
+      expect(find.byType(MonthlyBudgetCard), findsOneWidget);
+      expect(find.text('of Rp 5.000.000'), findsOneWidget);
+      expect(find.text('30%'), findsOneWidget);
+      expect(find.text('Category Budgets'), findsOneWidget);
+      expect(find.text('Food & Dining'), findsOneWidget);
 
       // Quick Action Buttons & FAB
       expect(find.text('Add Transaction'), findsOneWidget);
@@ -155,7 +224,7 @@ void main() {
       expect(find.text('This Month'), findsOneWidget);
       expect(find.text('Rp 2.000.000'), findsOneWidget);
       expect(find.text('Rp 3.000.000'), findsOneWidget);
-      expect(find.text('Rp 1.000.000'), findsOneWidget);
+      expect(find.text('Rp 1.000.000'), findsWidgets);
 
       // Tap "This Month" chip to return to current month
       await tester.tap(find.text('This Month'));
@@ -170,7 +239,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap "Add Transaction" quick action button
-      await tester.tap(find.text('Add Transaction'));
+      final addButton = find.text('Add Transaction');
+      await tester.ensureVisible(addButton);
+      await tester.tap(addButton);
       await tester.pumpAndSettle();
       expect(find.text('Add Transaction Target Screen'), findsOneWidget);
     });
@@ -181,7 +252,19 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap "Setup Budget" quick action button
-      await tester.tap(find.text('Setup Budget'));
+      final setupButton = find.text('Setup Budget');
+      await tester.ensureVisible(setupButton);
+      await tester.tap(setupButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Budget Setup Target Screen'), findsOneWidget);
+    });
+
+    testWidgets('budget progress Manage button navigates to budget setup screen',
+        (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Manage'));
       await tester.pumpAndSettle();
       expect(find.text('Budget Setup Target Screen'), findsOneWidget);
     });

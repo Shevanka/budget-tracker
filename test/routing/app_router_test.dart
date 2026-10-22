@@ -1,6 +1,8 @@
 import 'package:budget_tracker/app.dart';
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/database_provider.dart';
+import 'package:budget_tracker/features/budget/domain/models/budget_status.dart';
+import 'package:budget_tracker/features/budget/providers/budget_provider.dart';
 import 'package:budget_tracker/features/categories/presentation/screens/category_manager_screen.dart';
 import 'package:budget_tracker/features/categories/providers/categories_provider.dart';
 import 'package:budget_tracker/features/dashboard/domain/models/financial_summary.dart';
@@ -55,6 +57,24 @@ void main() {
             ),
           ),
         ),
+        monthlyBudgetStatusProvider.overrideWith(
+          (ref, month) => Stream.value(
+            MonthlyBudgetStatus(
+              yearMonth: month,
+              totalLimit: 0,
+              totalSpent: 0,
+              totalRemaining: 0,
+              percentage: 0,
+              ratio: 0.0,
+              statusLevel: BudgetStatusLevel.safe,
+              categoryStatuses: const [],
+              unbudgetedSpent: 0,
+            ),
+          ),
+        ),
+        previousAvailableBudgetProvider.overrideWith(
+          (ref, month) => Future.value(null),
+        ),
       ],
       child: const BudgetTrackerApp(),
     );
@@ -103,7 +123,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap "Add Transaction" on Dashboard
-      await tester.tap(find.text('Add Transaction').first);
+      final addButton = find.text('Add Transaction').first;
+      await tester.ensureVisible(addButton);
+      await tester.tap(addButton);
       await tester.pumpAndSettle();
 
       expect(find.byType(AddEditTransactionScreen), findsOneWidget);
@@ -114,7 +136,9 @@ void main() {
       await tester.pumpWidget(createTestApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Setup Budget'));
+      final setupButton = find.text('Setup Budget');
+      await tester.ensureVisible(setupButton);
+      await tester.tap(setupButton);
       await tester.pumpAndSettle();
 
       expect(find.text('Monthly Budget Setup'), findsOneWidget);
