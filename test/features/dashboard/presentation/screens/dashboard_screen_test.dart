@@ -17,6 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 class FakeBudgetController extends BudgetController {
+  static final List<String> ensureBudgetCalls = [];
+
   @override
   Future<void> build() async {}
 
@@ -25,6 +27,7 @@ class FakeBudgetController extends BudgetController {
     String yearMonth, {
     bool fallbackToLatest = true,
   }) async {
+    ensureBudgetCalls.add(yearMonth);
     return null;
   }
 }
@@ -411,6 +414,46 @@ void main() {
 
       expect(find.text('Failed to load financial summary'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
+    });
+
+    testWidgets('pull-to-refresh triggers refresh and re-ensures budget for month',
+        (tester) async {
+      FakeBudgetController.ensureBudgetCalls.clear();
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      final initialCallCount = FakeBudgetController.ensureBudgetCalls.length;
+      expect(initialCallCount, greaterThanOrEqualTo(1));
+
+      // Trigger pull to refresh
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(0, 300),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+
+      expect(FakeBudgetController.ensureBudgetCalls.length, greaterThan(initialCallCount));
+      expect(FakeBudgetController.ensureBudgetCalls.last, currentMonth);
+    });
+
+    testWidgets('slow drag below horizontal threshold does not navigate month',
+        (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.text(YearMonthUtils.formatDisplay(currentMonth)), findsWidgets);
+
+      // Perform a slow drag with negligible release velocity
+      final gesture = await tester.startGesture(const Offset(200, 200));
+      await gesture.moveBy(const Offset(-30, 0));
+      await tester.pump(const Duration(milliseconds: 500));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Month remains unchanged
+      expect(find.text(YearMonthUtils.formatDisplay(currentMonth)), findsWidgets);
     });
   });
 }
