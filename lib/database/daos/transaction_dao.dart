@@ -444,6 +444,86 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
       }).toList();
     });
   }
+
+  /// Streams transactions joined with their categories in a date range,
+  /// optionally filtered by [type], ordered by date descending, then createdAt descending.
+  Stream<List<TransactionWithCategory>> watchTransactionsWithCategoryByDateRange(
+    DateTime start,
+    DateTime end, {
+    TransactionType? type,
+  }) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    var whereExpr = transactions.date.isBiggerOrEqualValue(startUtc) &
+        transactions.date.isSmallerOrEqualValue(endUtc);
+
+    if (type != null) {
+      whereExpr = whereExpr & transactions.type.equalsValue(type);
+    }
+
+    query.where(whereExpr);
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
+
+  /// Fetches transactions joined with their categories in a date range,
+  /// optionally filtered by [type], ordered by date descending, then createdAt descending.
+  Future<List<TransactionWithCategory>> getTransactionsWithCategoryByDateRange(
+    DateTime start,
+    DateTime end, {
+    TransactionType? type,
+  }) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    var whereExpr = transactions.date.isBiggerOrEqualValue(startUtc) &
+        transactions.date.isSmallerOrEqualValue(endUtc);
+
+    if (type != null) {
+      whereExpr = whereExpr & transactions.type.equalsValue(type);
+    }
+
+    query.where(whereExpr);
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    return query.get().then((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
 }
 
 /// A transaction combined with its optional joined [Category].

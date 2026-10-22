@@ -8,6 +8,9 @@ import 'package:budget_tracker/features/categories/providers/categories_provider
 import 'package:budget_tracker/features/dashboard/domain/models/financial_summary.dart';
 import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:budget_tracker/features/dashboard/providers/dashboard_provider.dart';
+import 'package:budget_tracker/features/reports/domain/models/category_spending.dart';
+import 'package:budget_tracker/features/reports/presentation/screens/reports_screen.dart';
+import 'package:budget_tracker/features/reports/providers/reports_provider.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/add_edit_transaction_screen.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/transactions_screen.dart';
 import 'package:budget_tracker/features/transactions/providers/transactions_provider.dart';
@@ -78,6 +81,16 @@ void main() {
         recentTransactionsForMonthProvider.overrideWith(
           (ref, month) => Stream.value([]),
         ),
+        categorySpendingReportProvider.overrideWith(
+          (ref, filter) => Stream.value(
+            CategorySpendingReport(
+              items: const [],
+              totalExpense: 0,
+              startDate: filter.startDate,
+              endDate: filter.endDate,
+            ),
+          ),
+        ),
       ],
       child: const BudgetTrackerApp(),
     );
@@ -104,7 +117,8 @@ void main() {
       await tester.tap(find.text('Reports'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Spending Analytics'), findsOneWidget);
+      expect(find.byType(ReportsScreen), findsOneWidget);
+      expect(find.text('Spending by Category'), findsOneWidget);
     });
 
     testWidgets('switches to Settings tab on tap', (tester) async {
