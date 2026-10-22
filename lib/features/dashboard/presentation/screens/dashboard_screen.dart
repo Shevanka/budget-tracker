@@ -62,19 +62,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               .read(budgetControllerProvider.notifier)
               .ensureBudgetForMonth(selectedMonth);
         },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Month Selector Header
-              MonthSelectorHeader(
-                selectedYearMonth: selectedMonth,
-                onPrevious: monthNotifier.previousMonth,
-                onNext: monthNotifier.nextMonth,
-                onResetCurrent: monthNotifier.resetToCurrentMonth,
-              ),
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragEnd: (details) {
+            final velocity = details.primaryVelocity ?? 0;
+            if (velocity < -200) {
+              monthNotifier.nextMonth();
+            } else if (velocity > 200) {
+              monthNotifier.previousMonth();
+            }
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Month Selector Header
+                MonthSelectorHeader(
+                  selectedYearMonth: selectedMonth,
+                  onPrevious: monthNotifier.previousMonth,
+                  onNext: monthNotifier.nextMonth,
+                  onResetCurrent: monthNotifier.resetToCurrentMonth,
+                  onMonthSelected: monthNotifier.setMonth,
+                ),
               const SizedBox(height: 16),
 
               // Financial Summary Cards
@@ -154,6 +165,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
         ),
+      ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push(AppRoute.addTransaction.path),

@@ -274,6 +274,56 @@ void main() {
       expect(find.text('Rp 3.500.000'), findsOneWidget);
     });
 
+    testWidgets('tapping month header dropdown opens MonthPickerDialog and updates month',
+        (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      // Tap the dropdown icon in MonthSelectorHeader
+      final dropdownIcon = find.byIcon(Icons.arrow_drop_down_rounded);
+      expect(dropdownIcon, findsOneWidget);
+      await tester.tap(dropdownIcon);
+      await tester.pumpAndSettle();
+
+      // Verify dialog is open
+      expect(find.byType(MonthPickerDialog), findsOneWidget);
+
+      // Tap Previous Year chevron in dialog to jump back 1 year
+      await tester.tap(find.byTooltip('Previous year'));
+      await tester.pumpAndSettle();
+
+      // Tap 'Jan'
+      await tester.tap(find.text('Jan'));
+      await tester.pumpAndSettle();
+
+      // Dialog should be dismissed
+      expect(find.byType(MonthPickerDialog), findsNothing);
+
+      // Month selector header should now display January of previous year
+      final (currentYear, _) = YearMonthUtils.parse(currentMonth);
+      final expectedYearMonth = '${currentYear - 1}-01';
+      expect(find.text(YearMonthUtils.formatDisplay(expectedYearMonth)), findsWidgets);
+    });
+
+    testWidgets('horizontal fling navigates between months', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      final nextMonth = YearMonthUtils.nextYearMonth(currentMonth);
+
+      // Fling right-to-left (negative horizontal offset) to advance to next month
+      await tester.fling(find.byType(DashboardScreen), const Offset(-400, 0), 1000);
+      await tester.pumpAndSettle();
+
+      expect(find.text(YearMonthUtils.formatDisplay(nextMonth)), findsWidgets);
+
+      // Fling left-to-right (positive horizontal offset) to return to previous month
+      await tester.fling(find.byType(DashboardScreen), const Offset(400, 0), 1000);
+      await tester.pumpAndSettle();
+
+      expect(find.text(YearMonthUtils.formatDisplay(currentMonth)), findsWidgets);
+    });
+
     testWidgets('quick actions navigate to respective screens', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
