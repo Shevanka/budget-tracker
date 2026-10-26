@@ -6,6 +6,7 @@ import '../../../database/converters/transaction_type.dart';
 import '../../../database/database_provider.dart';
 import '../domain/models/category_spending.dart';
 import '../domain/models/date_range_filter.dart';
+import '../domain/models/spending_over_time.dart';
 
 /// Manages the active [DateRangeFilter] for reports and analytics.
 class ReportsFilterNotifier extends Notifier<DateRangeFilter> {
@@ -137,4 +138,77 @@ final currentCategorySpendingReportProvider =
     Provider.autoDispose<AsyncValue<CategorySpendingReport>>((ref) {
   final filter = ref.watch(reportsFilterProvider);
   return ref.watch(categorySpendingReportProvider(filter));
+});
+
+/// Streams [SpendingOverTimeReport] for a given [DateRangeFilter].
+final spendingOverTimeProvider =
+    StreamProvider.autoDispose.family<SpendingOverTimeReport, DateRangeFilter>((ref, filter) {
+  final dao = ref.watch(transactionDaoProvider);
+  return dao
+      .watchTransactionsWithCategoryByDateRange(
+        filter.startDate,
+        filter.endDate,
+        type: TransactionType.expense,
+      )
+      .map((txList) {
+        final startUtc = DateTime.utc(
+          filter.startDate.year,
+          filter.startDate.month,
+          filter.startDate.day,
+        );
+        final endUtc = DateTime.utc(
+          filter.endDate.year,
+          filter.endDate.month,
+          filter.endDate.day,
+        );
+        final dayCount = endUtc.difference(startUtc).inDays + 1;
+
+        // Initialize daily map with zeroes for all calendar days
+        final dailyMap = <DateTime, (int amount, int count)>{};
+        for (var i = 0; i < dayCount; i++) {
+          final date = DateTime.utc(startUtc.year, startUtc.month, startUtc.day + i);
+          dailyMap[date] = (0, 0);
+        }
+
+        var totalExpense = 0;
+
+        for (final item in txList) {
+          final amount = item.transaction.amount;
+          totalExpense += amount;
+
+          final txDate = item.transaction.date;
+          final dayKey = DateTime.utc(txDate.year, txDate.month, txDate.day);
+
+          if (dailyMap.containsKey(dayKey)) {
+            final current = dailyMap[dayKey]!;
+            dailyMap[dayKey] = (current.$1 + amount, current.$2 + 1);
+          } else {
+            dailyMap[dayKey] = (amount, 1);
+          }
+        }
+
+        final sortedKeys = dailyMap.keys.toList()..sort();
+        final items = sortedKeys.map((k) {
+          final entry = dailyMap[k]!;
+          return DailySpending(
+            date: k,
+            amount: entry.$1,
+            transactionCount: entry.$2,
+          );
+        }).toList();
+
+        return SpendingOverTimeReport(
+          items: items,
+          totalExpense: totalExpense,
+          startDate: filter.startDate,
+          endDate: filter.endDate,
+        );
+      });
+});
+
+/// Streams the spending over time report for the currently active [reportsFilterProvider].
+final currentSpendingOverTimeProvider =
+    Provider.autoDispose<AsyncValue<SpendingOverTimeReport>>((ref) {
+  final filter = ref.watch(reportsFilterProvider);
+  return ref.watch(spendingOverTimeProvider(filter));
 });

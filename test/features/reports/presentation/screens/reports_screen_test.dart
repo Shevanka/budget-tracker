@@ -3,8 +3,10 @@ import 'package:budget_tracker/core/utils/year_month_utils.dart';
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/converters/transaction_type.dart';
 import 'package:budget_tracker/features/reports/domain/models/category_spending.dart';
+import 'package:budget_tracker/features/reports/domain/models/spending_over_time.dart';
 import 'package:budget_tracker/features/reports/presentation/screens/reports_screen.dart';
 import 'package:budget_tracker/features/reports/presentation/widgets/category_pie_chart.dart';
+import 'package:budget_tracker/features/reports/presentation/widgets/spending_bar_chart.dart';
 import 'package:budget_tracker/features/reports/providers/reports_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -82,6 +84,24 @@ void main() {
               );
             },
           ),
+        spendingOverTimeProvider.overrideWith(
+          (ref, filter) {
+            return Stream.value(
+              SpendingOverTimeReport(
+                items: [
+                  DailySpending(
+                    date: filter.startDate,
+                    amount: 500000,
+                    transactionCount: 1,
+                  ),
+                ],
+                totalExpense: 500000,
+                startDate: filter.startDate,
+                endDate: filter.endDate,
+              ),
+            );
+          },
+        ),
       ],
       child: MaterialApp(
         theme: AppTheme.lightTheme,
@@ -91,7 +111,7 @@ void main() {
   }
 
   group('ReportsScreen Presentation Tests', () {
-    testWidgets('renders reports screen with period selector, pie chart, and top category insight',
+    testWidgets('renders reports screen with period selector, pie chart, top category insight, and bar chart',
         (tester) async {
       await tester.pumpWidget(buildTestScreen());
       await tester.pumpAndSettle();
@@ -112,6 +132,10 @@ void main() {
       // Insights card
       expect(find.text('Top Spending Category'), findsOneWidget);
       expect(find.text('Food & Dining (100.0%)'), findsOneWidget);
+
+      // Spending bar chart card
+      expect(find.byType(SpendingBarChart), findsOneWidget);
+      expect(find.text('Spending Over Time'), findsOneWidget);
     });
 
     testWidgets('switching between Month and Week toggles period view',

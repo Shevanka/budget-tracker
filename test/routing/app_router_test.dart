@@ -9,6 +9,7 @@ import 'package:budget_tracker/features/dashboard/domain/models/financial_summar
 import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:budget_tracker/features/dashboard/providers/dashboard_provider.dart';
 import 'package:budget_tracker/features/reports/domain/models/category_spending.dart';
+import 'package:budget_tracker/features/reports/domain/models/spending_over_time.dart';
 import 'package:budget_tracker/features/reports/presentation/screens/reports_screen.dart';
 import 'package:budget_tracker/features/reports/providers/reports_provider.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/add_edit_transaction_screen.dart';
@@ -84,6 +85,16 @@ void main() {
         categorySpendingReportProvider.overrideWith(
           (ref, filter) => Stream.value(
             CategorySpendingReport(
+              items: const [],
+              totalExpense: 0,
+              startDate: filter.startDate,
+              endDate: filter.endDate,
+            ),
+          ),
+        ),
+        spendingOverTimeProvider.overrideWith(
+          (ref, filter) => Stream.value(
+            SpendingOverTimeReport(
               items: const [],
               totalExpense: 0,
               startDate: filter.startDate,

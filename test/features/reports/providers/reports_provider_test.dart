@@ -215,4 +215,95 @@ void main() {
       expect(report.items[0].percentage, 100.0);
     });
   });
+
+  group('spendingOverTimeProvider Tests', () {
+    test('emits zero-filled daily report when no transactions exist in month', () async {
+      final filter = DateRangeFilter.forMonth('2026-10');
+      final report = await container.read(spendingOverTimeProvider(filter).future);
+
+      expect(report.isEmpty, isTrue);
+      // October has 31 days
+      expect(report.items.length, 31);
+      expect(report.totalExpense, 0);
+      expect(report.items.every((d) => d.amount == 0), isTrue);
+    });
+
+    test('aggregates multiple expenses by calendar day and computes stats', () async {
+      final filter = DateRangeFilter.forMonth('2026-10');
+
+      // 2 expenses on Oct 5 (100k + 200k = 300k)
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-d1-1'),
+          amount: const drift.Value(100000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('Cash'),
+          date: drift.Value(DateTime.utc(2026, 10, 5, 8, 0)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 5, 8, 0)),
+        ),
+      );
+
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-d1-2'),
+          amount: const drift.Value(200000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('BCA'),
+          date: drift.Value(DateTime.utc(2026, 10, 5, 18, 0)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 5, 18, 0)),
+        ),
+      );
+
+      // 1 expense on Oct 20 (150k)
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-d2-1'),
+          amount: const drift.Value(150000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-transport'),
+          source: const drift.Value('GoPay'),
+          date: drift.Value(DateTime.utc(2026, 10, 20, 14, 0)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 20, 14, 0)),
+        ),
+      );
+
+      // Income transaction on Oct 5 (should be ignored)
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-income'),
+          amount: const drift.Value(1000000),
+          type: const drift.Value(TransactionType.income),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('Bonus'),
+          date: drift.Value(DateTime.utc(2026, 10, 5, 9, 0)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 5, 9, 0)),
+        ),
+      );
+
+      final report = await container.read(spendingOverTimeProvider(filter).future);
+
+      expect(report.hasData, isTrue);
+      expect(report.totalExpense, 450000);
+      expect(report.items.length, 31);
+
+      // Oct 5 (index 4) should have 300,000 and 2 transactions
+      final oct5 = report.items[4];
+      expect(oct5.date.day, 5);
+      expect(oct5.amount, 300000);
+      expect(oct5.transactionCount, 2);
+
+      // Oct 20 (index 19) should have 150,000 and 1 transaction
+      final oct20 = report.items[19];
+      expect(oct20.date.day, 20);
+      expect(oct20.amount, 150000);
+      expect(oct20.transactionCount, 1);
+
+      // Peak / highest spending day should be Oct 5
+      expect(report.highestSpendingDay, equals(oct5));
+      expect(report.maxDailyExpense, 300000);
+      expect(report.averageDailyExpense, (450000 / 31).round());
+    });
+  });
 }

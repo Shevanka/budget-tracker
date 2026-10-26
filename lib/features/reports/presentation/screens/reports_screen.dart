@@ -6,6 +6,7 @@ import '../../../../core/utils/year_month_utils.dart';
 import '../../domain/models/date_range_filter.dart';
 import '../../providers/reports_provider.dart';
 import '../widgets/category_pie_chart.dart';
+import '../widgets/spending_bar_chart.dart';
 
 /// The reports and analytics screen displaying spending breakdown,
 /// charts, and period filtering.
@@ -19,6 +20,7 @@ class ReportsScreen extends ConsumerWidget {
     final currentFilter = ref.watch(reportsFilterProvider);
     final filterNotifier = ref.read(reportsFilterProvider.notifier);
     final reportAsync = ref.watch(currentCategorySpendingReportProvider);
+    final overTimeAsync = ref.watch(currentSpendingOverTimeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -27,6 +29,7 @@ class ReportsScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(categorySpendingReportProvider);
+          ref.invalidate(spendingOverTimeProvider);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -141,6 +144,19 @@ class ReportsScreen extends ConsumerWidget {
                       ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 16),
+
+              // Spending Over Time Bar Chart
+              overTimeAsync.when(
+                loading: () => const SizedBox(
+                  height: 200,
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                error: (error, _) => const SizedBox.shrink(),
+                data: (overTimeReport) => SpendingBarChart(report: overTimeReport),
               ),
             ],
           ),
