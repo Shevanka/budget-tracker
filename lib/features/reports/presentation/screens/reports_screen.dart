@@ -3,18 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/year_month_utils.dart';
+import '../../domain/models/category_spending.dart';
 import '../../domain/models/date_range_filter.dart';
 import '../../providers/reports_provider.dart';
+import '../widgets/category_breakdown_list.dart';
 import '../widgets/category_pie_chart.dart';
 import '../widgets/spending_bar_chart.dart';
 
 /// The reports and analytics screen displaying spending breakdown,
 /// charts, and period filtering.
-class ReportsScreen extends ConsumerWidget {
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  CategorySpending? _selectedCategory;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final currentFilter = ref.watch(reportsFilterProvider);
@@ -37,7 +46,7 @@ class ReportsScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Period Filter Header (Month / Week toggle & Chevrons)
+              // Period Filter Header (Month / Week / Custom toggle & controls)
               _buildPeriodHeader(
                 context,
                 currentFilter,
@@ -81,7 +90,13 @@ class ReportsScreen extends ConsumerWidget {
                 data: (report) => Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    CategoryPieChart(report: report),
+                    CategoryPieChart(
+                      report: report,
+                      selectedCategory: _selectedCategory,
+                      onCategorySelected: (cat) {
+                        setState(() => _selectedCategory = cat);
+                      },
+                    ),
                     const SizedBox(height: 16),
 
                     // Quick Insights Summary Card
@@ -157,6 +172,20 @@ class ReportsScreen extends ConsumerWidget {
                 ),
                 error: (error, _) => const SizedBox.shrink(),
                 data: (overTimeReport) => SpendingBarChart(report: overTimeReport),
+              ),
+              const SizedBox(height: 16),
+
+              // Category Breakdown List
+              reportAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
+                data: (report) => CategoryBreakdownList(
+                  report: report,
+                  selectedCategory: _selectedCategory,
+                  onCategorySelected: (cat) {
+                    setState(() => _selectedCategory = cat);
+                  },
+                ),
               ),
             ],
           ),

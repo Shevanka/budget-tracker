@@ -8,11 +8,13 @@ import '../../domain/models/category_spending.dart';
 /// A Material 3 interactive donut pie chart displaying category spending breakdown.
 class CategoryPieChart extends StatefulWidget {
   final CategorySpendingReport report;
+  final CategorySpending? selectedCategory;
   final ValueChanged<CategorySpending?>? onCategorySelected;
 
   const CategoryPieChart({
     super.key,
     required this.report,
+    this.selectedCategory,
     this.onCategorySelected,
   });
 
@@ -24,10 +26,26 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
   int? _touchedIndex;
 
   @override
+  void initState() {
+    super.initState();
+    _syncSelectedIndex();
+  }
+
+  void _syncSelectedIndex() {
+    if (widget.selectedCategory != null) {
+      final idx = widget.report.items.indexOf(widget.selectedCategory!);
+      _touchedIndex = idx >= 0 ? idx : null;
+    } else {
+      _touchedIndex = null;
+    }
+  }
+
+  @override
   void didUpdateWidget(covariant CategoryPieChart oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reset selection if report items change
-    if (widget.report != oldWidget.report) {
+    if (widget.selectedCategory != oldWidget.selectedCategory) {
+      _syncSelectedIndex();
+    } else if (widget.report != oldWidget.report) {
       if (_touchedIndex != null &&
           _touchedIndex! >= widget.report.items.length) {
         _touchedIndex = null;

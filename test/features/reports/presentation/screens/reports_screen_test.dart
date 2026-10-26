@@ -5,6 +5,7 @@ import 'package:budget_tracker/database/converters/transaction_type.dart';
 import 'package:budget_tracker/features/reports/domain/models/category_spending.dart';
 import 'package:budget_tracker/features/reports/domain/models/spending_over_time.dart';
 import 'package:budget_tracker/features/reports/presentation/screens/reports_screen.dart';
+import 'package:budget_tracker/features/reports/presentation/widgets/category_breakdown_list.dart';
 import 'package:budget_tracker/features/reports/presentation/widgets/category_pie_chart.dart';
 import 'package:budget_tracker/features/reports/presentation/widgets/spending_bar_chart.dart';
 import 'package:budget_tracker/features/reports/providers/reports_provider.dart';
@@ -137,6 +138,10 @@ void main() {
       // Spending bar chart card
       expect(find.byType(SpendingBarChart), findsOneWidget);
       expect(find.text('Spending Over Time'), findsOneWidget);
+
+      // Category breakdown list card
+      expect(find.byType(CategoryBreakdownList), findsOneWidget);
+      expect(find.text('Category Breakdown'), findsOneWidget);
     });
 
     testWidgets('switching between Month and Week toggles period view',
@@ -225,6 +230,26 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Last 7 Days'), findsWidgets);
+    });
+
+    testWidgets('tapping a category in breakdown list selects and highlights it',
+        (tester) async {
+      await tester.pumpWidget(buildTestScreen());
+      await tester.pumpAndSettle();
+
+      final foodTile = find.descendant(
+        of: find.byType(CategoryBreakdownList),
+        matching: find.text('Food & Dining'),
+      );
+      expect(foodTile, findsOneWidget);
+
+      await tester.ensureVisible(foodTile);
+      await tester.tap(foodTile);
+      await tester.pumpAndSettle();
+
+      // Tap again to deselect
+      await tester.tap(foodTile);
+      await tester.pumpAndSettle();
     });
 
     testWidgets('renders error card when report stream yields error',
