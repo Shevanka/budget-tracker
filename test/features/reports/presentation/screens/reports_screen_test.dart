@@ -111,7 +111,7 @@ void main() {
   }
 
   group('ReportsScreen Presentation Tests', () {
-    testWidgets('renders reports screen with period selector, pie chart, top category insight, and bar chart',
+    testWidgets('renders reports screen with period selector (Month, Week, Custom), pie chart, top category insight, and bar chart',
         (tester) async {
       await tester.pumpWidget(buildTestScreen());
       await tester.pumpAndSettle();
@@ -120,6 +120,7 @@ void main() {
       expect(find.text('Reports'), findsOneWidget);
       expect(find.text('Month'), findsOneWidget);
       expect(find.text('Week'), findsOneWidget);
+      expect(find.text('Custom'), findsOneWidget);
 
       // Period header
       expect(find.text(YearMonthUtils.formatDisplay(currentMonth)), findsOneWidget);
@@ -176,6 +177,54 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(YearMonthUtils.formatDisplay(currentMonth)), findsOneWidget);
+    });
+
+    testWidgets('week navigation moves to previous week and allows reset to current week',
+        (tester) async {
+      await tester.pumpWidget(buildTestScreen());
+      await tester.pumpAndSettle();
+
+      // Tap 'Week' segment
+      await tester.tap(find.text('Week'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('This Week'), findsOneWidget);
+
+      // Tap previous week
+      await tester.tap(find.byTooltip('Previous week'));
+      await tester.pumpAndSettle();
+
+      // Previous week should show date span and 'This Week' reset chip
+      expect(find.text('This Week'), findsOneWidget); // In the chip
+      expect(find.byTooltip('Next week'), findsOneWidget);
+
+      // Tap 'This Week' reset chip
+      await tester.tap(find.text('This Week'));
+      await tester.pumpAndSettle();
+
+      // Returned to current week header
+      expect(find.text('This Week'), findsOneWidget);
+    });
+
+    testWidgets('custom period view displays preset chips and date range button',
+        (tester) async {
+      await tester.pumpWidget(buildTestScreen());
+      await tester.pumpAndSettle();
+
+      // Tap 'Custom' segment
+      await tester.tap(find.text('Custom'));
+      await tester.pumpAndSettle();
+
+      // Custom controls rendered
+      expect(find.text('Last 30 Days'), findsWidgets);
+      expect(find.text('Last 7 Days'), findsOneWidget);
+      expect(find.textContaining('This Year'), findsOneWidget);
+
+      // Tap 'Last 7 Days' preset chip
+      await tester.tap(find.text('Last 7 Days'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Last 7 Days'), findsWidgets);
     });
 
     testWidgets('renders error card when report stream yields error',

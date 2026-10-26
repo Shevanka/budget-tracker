@@ -39,12 +39,50 @@ class ReportsFilterNotifier extends Notifier<DateRangeFilter> {
     state = DateRangeFilter.currentMonth();
   }
 
-  void setWeek() {
+  void setWeek([DateTime? date]) {
+    state = DateRangeFilter.forWeek(date);
+  }
+
+  void previousWeek() {
+    final prevDate = state.startDate.subtract(const Duration(days: 7));
+    state = DateRangeFilter.forWeek(prevDate);
+  }
+
+  void nextWeek() {
+    final nextDate = state.startDate.add(const Duration(days: 7));
+    state = DateRangeFilter.forWeek(nextDate);
+  }
+
+  void resetToCurrentWeek() {
     state = DateRangeFilter.currentWeek();
   }
 
   void setCustom(DateTime start, DateTime end, [String? label]) {
     state = DateRangeFilter.custom(start: start, end: end, label: label);
+  }
+
+  void previousPeriod() {
+    if (state.type == DateRangeType.week) {
+      previousWeek();
+    } else if (state.type == DateRangeType.month) {
+      previousMonth();
+    }
+  }
+
+  void nextPeriod() {
+    if (state.type == DateRangeType.week) {
+      nextWeek();
+    } else if (state.type == DateRangeType.month) {
+      nextMonth();
+    }
+  }
+
+  void resetToCurrent() {
+    if (state.type == DateRangeType.week) {
+      resetToCurrentWeek();
+    } else {
+      resetToCurrentMonth();
+    }
   }
 }
 

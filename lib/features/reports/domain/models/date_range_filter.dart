@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/utils/year_month_utils.dart';
 
@@ -44,19 +45,37 @@ class DateRangeFilter {
     return DateRangeFilter.forMonth(YearMonthUtils.currentYearMonth());
   }
 
-  /// Creates a filter for the current calendar week (Monday to Sunday).
-  factory DateRangeFilter.currentWeek() {
-    final now = DateTime.now();
+  /// Creates a filter for a week containing [date] (defaults to today).
+  factory DateRangeFilter.forWeek([DateTime? date]) {
+    final target = date ?? DateTime.now();
+    final targetUtc = DateTime.utc(target.year, target.month, target.day);
     // Monday is weekday 1 in Dart
-    final monday = DateTime.utc(now.year, now.month, now.day - (now.weekday - 1));
+    final monday = targetUtc.subtract(Duration(days: targetUtc.weekday - 1));
     final sunday = DateTime.utc(monday.year, monday.month, monday.day + 6, 23, 59, 59, 999);
+
+    final now = DateTime.now();
+    final nowUtc = DateTime.utc(now.year, now.month, now.day);
+    final nowMonday = nowUtc.subtract(Duration(days: nowUtc.weekday - 1));
+    final isCurrent = monday.year == nowMonday.year &&
+        monday.month == nowMonday.month &&
+        monday.day == nowMonday.day;
+
+    final label = isCurrent
+        ? 'This Week'
+        : (monday.year == sunday.year
+            ? '${DateFormat('d MMM').format(monday)} – ${DateFormat('d MMM yyyy').format(sunday)}'
+            : '${DateFormat('d MMM yyyy').format(monday)} – ${DateFormat('d MMM yyyy').format(sunday)}');
+
     return DateRangeFilter(
       type: DateRangeType.week,
       startDate: monday,
       endDate: sunday,
-      label: 'This Week',
+      label: label,
     );
   }
+
+  /// Creates a filter for the current calendar week (Monday to Sunday).
+  factory DateRangeFilter.currentWeek() => DateRangeFilter.forWeek();
 
   /// Creates a custom date range filter.
   factory DateRangeFilter.custom({
@@ -64,14 +83,44 @@ class DateRangeFilter {
     required DateTime end,
     String? label,
   }) {
-    final startUtc = DateTime.utc(start.year, start.month, start.day);
-    final endUtc = DateTime.utc(end.year, end.month, end.day, 23, 59, 59, 999);
+    final s = start.isBefore(end) ? start : end;
+    final e = start.isBefore(end) ? end : start;
+    final startUtc = DateTime.utc(s.year, s.month, s.day);
+    final endUtc = DateTime.utc(e.year, e.month, e.day, 23, 59, 59, 999);
+    final computedLabel = label ?? _formatCustomRange(startUtc, endUtc);
+
     return DateRangeFilter(
       type: DateRangeType.custom,
       startDate: startUtc,
       endDate: endUtc,
-      label: label ?? 'Custom Period',
+      label: computedLabel,
     );
+  }
+
+  static String _formatCustomRange(DateTime start, DateTime end) {
+    if (start.year == end.year) {
+      if (start.month == end.month && start.day == end.day) {
+        return DateFormat('d MMM yyyy').format(start);
+      }
+      return '${DateFormat('d MMM').format(start)} – ${DateFormat('d MMM yyyy').format(end)}';
+    }
+    return '${DateFormat('d MMM yyyy').format(start)} – ${DateFormat('d MMM yyyy').format(end)}';
+  }
+
+  /// Returns whether this filter represents the current period (month or week).
+  bool get isCurrent {
+    if (type == DateRangeType.month) {
+      return yearMonth == YearMonthUtils.currentYearMonth();
+    }
+    if (type == DateRangeType.week) {
+      final now = DateTime.now();
+      final nowUtc = DateTime.utc(now.year, now.month, now.day);
+      final nowMonday = nowUtc.subtract(Duration(days: nowUtc.weekday - 1));
+      return startDate.year == nowMonday.year &&
+          startDate.month == nowMonday.month &&
+          startDate.day == nowMonday.day;
+    }
+    return false;
   }
 
   DateRangeFilter copyWith({

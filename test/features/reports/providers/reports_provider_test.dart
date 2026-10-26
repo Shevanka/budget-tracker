@@ -75,9 +75,23 @@ void main() {
 
       notifier.setWeek();
       expect(container.read(reportsFilterProvider).type, DateRangeType.week);
+      expect(container.read(reportsFilterProvider).isCurrent, isTrue);
+
+      notifier.previousWeek();
+      expect(container.read(reportsFilterProvider).isCurrent, isFalse);
+
+      notifier.nextWeek();
+      expect(container.read(reportsFilterProvider).isCurrent, isTrue);
+
+      notifier.previousPeriod();
+      expect(container.read(reportsFilterProvider).isCurrent, isFalse);
+
+      notifier.resetToCurrent();
+      expect(container.read(reportsFilterProvider).isCurrent, isTrue);
 
       notifier.setCustom(DateTime(2026, 1, 1), DateTime(2026, 1, 10));
       expect(container.read(reportsFilterProvider).type, DateRangeType.custom);
+      expect(container.read(reportsFilterProvider).label, '1 Jan – 10 Jan 2026');
     });
   });
 

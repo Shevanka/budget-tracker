@@ -172,12 +172,9 @@ class ReportsScreen extends ConsumerWidget {
     ColorScheme colorScheme,
     ThemeData theme,
   ) {
-    final isMonthFilter = filter.type == DateRangeType.month;
-    final isCurrent = filter.yearMonth == YearMonthUtils.currentYearMonth();
-
     return Column(
       children: [
-        // Mode Selector: Month vs Week
+        // Mode Selector: Month vs Week vs Custom
         SegmentedButton<DateRangeType>(
           segments: const [
             ButtonSegment<DateRangeType>(
@@ -190,6 +187,11 @@ class ReportsScreen extends ConsumerWidget {
               label: Text('Week'),
               icon: Icon(Icons.date_range_outlined, size: 16),
             ),
+            ButtonSegment<DateRangeType>(
+              value: DateRangeType.custom,
+              label: Text('Custom'),
+              icon: Icon(Icons.tune_rounded, size: 16),
+            ),
           ],
           selected: {filter.type},
           onSelectionChanged: (newSelection) {
@@ -198,74 +200,248 @@ class ReportsScreen extends ConsumerWidget {
               notifier.setMonth(YearMonthUtils.currentYearMonth());
             } else if (selected == DateRangeType.week) {
               notifier.setWeek();
+            } else if (selected == DateRangeType.custom) {
+              final now = DateTime.now();
+              notifier.setCustom(
+                now.subtract(const Duration(days: 29)),
+                now,
+                'Last 30 Days',
+              );
             }
           },
         ),
         const SizedBox(height: 12),
 
-        // Navigation Row (Chevrons & Period Label)
-        if (isMonthFilter)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                onPressed: notifier.previousMonth,
-                icon: const Icon(Icons.chevron_left_rounded),
-                tooltip: 'Previous month',
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    filter.label,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (!isCurrent) ...[
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: notifier.resetToCurrentMonth,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'This Month',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              IconButton(
-                onPressed: notifier.nextMonth,
-                icon: const Icon(Icons.chevron_right_rounded),
-                tooltip: 'Next month',
-              ),
-            ],
-          )
+        // Navigation Row according to active filter type
+        if (filter.type == DateRangeType.month)
+          _buildMonthNavigation(context, filter, notifier, colorScheme, theme)
+        else if (filter.type == DateRangeType.week)
+          _buildWeekNavigation(context, filter, notifier, colorScheme, theme)
         else
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
+          _buildCustomNavigation(context, filter, notifier, colorScheme, theme),
+      ],
+    );
+  }
+
+  Widget _buildMonthNavigation(
+    BuildContext context,
+    DateRangeFilter filter,
+    ReportsFilterNotifier notifier,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          onPressed: notifier.previousMonth,
+          icon: const Icon(Icons.chevron_left_rounded),
+          tooltip: 'Previous month',
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
               filter.label,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ),
+            if (!filter.isCurrent) ...[
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: notifier.resetToCurrentMonth,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'This Month',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        IconButton(
+          onPressed: notifier.nextMonth,
+          icon: const Icon(Icons.chevron_right_rounded),
+          tooltip: 'Next month',
+        ),
       ],
     );
+  }
+
+  Widget _buildWeekNavigation(
+    BuildContext context,
+    DateRangeFilter filter,
+    ReportsFilterNotifier notifier,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          onPressed: notifier.previousWeek,
+          icon: const Icon(Icons.chevron_left_rounded),
+          tooltip: 'Previous week',
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              filter.label,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (!filter.isCurrent) ...[
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: notifier.resetToCurrentWeek,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'This Week',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        IconButton(
+          onPressed: notifier.nextWeek,
+          icon: const Icon(Icons.chevron_right_rounded),
+          tooltip: 'Next week',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCustomNavigation(
+    BuildContext context,
+    DateRangeFilter filter,
+    ReportsFilterNotifier notifier,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    final now = DateTime.now();
+    return Column(
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => _pickCustomDateRange(context, filter, notifier),
+          icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+          label: Text(
+            filter.label,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FilterChip(
+                label: const Text('Last 7 Days'),
+                selected: filter.label == 'Last 7 Days',
+                onSelected: (_) {
+                  notifier.setCustom(
+                    now.subtract(const Duration(days: 6)),
+                    now,
+                    'Last 7 Days',
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: const Text('Last 30 Days'),
+                selected: filter.label == 'Last 30 Days',
+                onSelected: (_) {
+                  notifier.setCustom(
+                    now.subtract(const Duration(days: 29)),
+                    now,
+                    'Last 30 Days',
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: Text('This Year (${now.year})'),
+                selected: filter.label == 'This Year (${now.year})',
+                onSelected: (_) {
+                  notifier.setCustom(
+                    DateTime(now.year, 1, 1),
+                    DateTime(now.year, 12, 31),
+                    'This Year (${now.year})',
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickCustomDateRange(
+    BuildContext context,
+    DateRangeFilter filter,
+    ReportsFilterNotifier notifier,
+  ) async {
+    final now = DateTime.now();
+    final initialRange = filter.type == DateRangeType.custom
+        ? DateTimeRange(
+            start: filter.startDate.toLocal(),
+            end: filter.endDate.toLocal(),
+          )
+        : DateTimeRange(
+            start: now.subtract(const Duration(days: 29)),
+            end: now,
+          );
+
+    final picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: initialRange,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035, 12, 31),
+      helpText: 'Select Date Range',
+      saveText: 'Apply',
+    );
+
+    if (picked != null) {
+      notifier.setCustom(picked.start, picked.end);
+    }
   }
 }

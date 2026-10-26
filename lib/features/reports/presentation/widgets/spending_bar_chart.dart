@@ -148,7 +148,11 @@ class SpendingBarChart extends StatelessWidget {
   ) {
     final maxExpense = report.maxDailyExpense;
     final maxY = maxExpense > 0 ? maxExpense * 1.2 : 100000.0;
-    final barWidth = isWeekView ? 20.0 : (report.items.length > 20 ? 6.0 : 10.0);
+    final barWidth = isWeekView
+        ? 20.0
+        : (report.items.length > 31
+            ? 4.0
+            : (report.items.length > 20 ? 6.0 : 10.0));
 
     return BarChartData(
       alignment: BarChartAlignment.spaceAround,
@@ -210,11 +214,13 @@ class SpendingBarChart extends StatelessWidget {
                 );
               }
 
-              // In month view, show day of month for intervals
+              // In month or custom range view, show day of month for intervals
               final day = item.date.day;
               final isFirst = index == 0;
               final isLast = index == report.items.length - 1;
-              final isInterval = day % 5 == 0;
+              final isInterval = report.items.length > 31
+                  ? (day == 1 || day == 15)
+                  : (report.items.length <= 14 ? (index % 2 == 0) : day % 5 == 0);
 
               if (!isFirst && !isLast && !isInterval) {
                 return const SizedBox.shrink();

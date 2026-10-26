@@ -14,14 +14,18 @@ void main() {
       expect(filter.label, YearMonthUtils.formatDisplay('2026-10'));
     });
 
-    test('currentMonth initializes with currentYearMonth', () {
+    test('currentMonth initializes with currentYearMonth and isCurrent is true', () {
       final filter = DateRangeFilter.currentMonth();
 
       expect(filter.type, DateRangeType.month);
       expect(filter.yearMonth, YearMonthUtils.currentYearMonth());
+      expect(filter.isCurrent, isTrue);
+
+      final oldMonth = DateRangeFilter.forMonth('2020-01');
+      expect(oldMonth.isCurrent, isFalse);
     });
 
-    test('currentWeek initializes with week type and Monday to Sunday span', () {
+    test('currentWeek initializes with week type, Monday to Sunday span, and isCurrent is true', () {
       final filter = DateRangeFilter.currentWeek();
 
       expect(filter.type, DateRangeType.week);
@@ -29,6 +33,19 @@ void main() {
       expect(filter.startDate.weekday, DateTime.monday);
       expect(filter.endDate.weekday, DateTime.sunday);
       expect(filter.endDate.isAfter(filter.startDate), isTrue);
+      expect(filter.isCurrent, isTrue);
+    });
+
+    test('forWeek with past date creates Monday to Sunday span and formats label', () {
+      // 2026-05-13 is a Wednesday
+      final pastDate = DateTime(2026, 5, 13);
+      final filter = DateRangeFilter.forWeek(pastDate);
+
+      expect(filter.type, DateRangeType.week);
+      expect(filter.startDate, DateTime.utc(2026, 5, 11, 0, 0, 0)); // Monday
+      expect(filter.endDate, DateTime.utc(2026, 5, 17, 23, 59, 59, 999)); // Sunday
+      expect(filter.label, '11 May – 17 May 2026');
+      expect(filter.isCurrent, isFalse);
     });
 
     test('custom initializes with custom type and given dates', () {
@@ -44,6 +61,26 @@ void main() {
       expect(filter.startDate, DateTime.utc(2026, 5, 10));
       expect(filter.endDate, DateTime.utc(2026, 5, 20, 23, 59, 59, 999));
       expect(filter.label, 'Vacation');
+      expect(filter.isCurrent, isFalse);
+    });
+
+    test('custom automatically orders start and end when inverted and auto-formats label', () {
+      final start = DateTime(2026, 10, 20);
+      final end = DateTime(2026, 10, 5);
+      final filter = DateRangeFilter.custom(start: start, end: end);
+
+      expect(filter.startDate, DateTime.utc(2026, 10, 5));
+      expect(filter.endDate, DateTime.utc(2026, 10, 20, 23, 59, 59, 999));
+      expect(filter.label, '5 Oct – 20 Oct 2026');
+    });
+
+    test('custom formats single-day range correctly', () {
+      final day = DateTime(2026, 10, 15);
+      final filter = DateRangeFilter.custom(start: day, end: day);
+
+      expect(filter.startDate, DateTime.utc(2026, 10, 15));
+      expect(filter.endDate, DateTime.utc(2026, 10, 15, 23, 59, 59, 999));
+      expect(filter.label, '15 Oct 2026');
     });
 
     test('copyWith updates specified fields', () {
