@@ -16,6 +16,9 @@ abstract class NotificationService {
   /// Requests notification permissions (primarily Android 13+ and iOS).
   Future<bool> requestPermission();
 
+  /// Checks whether notification permission is currently granted.
+  Future<bool> isPermissionGranted();
+
   /// Displays an 80% budget threshold warning notification.
   Future<void> showBudgetWarning({
     required int id,
@@ -107,6 +110,23 @@ class LocalNotificationService implements NotificationService {
       return false;
     } catch (e) {
       debugPrint('Failed to request notification permission: $e');
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> isPermissionGranted() async {
+    try {
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidPlugin != null) {
+        final enabled = await androidPlugin.areNotificationsEnabled();
+        return enabled ?? false;
+      }
+
+      return false;
+    } catch (_) {
       return false;
     }
   }

@@ -18,3 +18,46 @@ final budgetAlertServiceProvider = Provider<BudgetAlertService>((ref) {
     notificationService: notificationService,
   );
 });
+
+/// Tracks whether the user dismissed the notification permission prompt banner during this app session.
+final notificationPermissionDismissedProvider = StateProvider<bool>((ref) => false);
+
+/// State notifier managing the runtime notification permission status (Android 13+ POST_NOTIFICATIONS).
+class NotificationPermissionNotifier extends AsyncNotifier<bool> {
+  @override
+  Future<bool> build() async {
+    final service = ref.watch(notificationServiceProvider);
+    return service.isPermissionGranted();
+  }
+
+  /// Requests the runtime POST_NOTIFICATIONS permission and updates state.
+  Future<bool> requestPermission() async {
+    state = const AsyncValue.loading();
+    try {
+      final service = ref.read(notificationServiceProvider);
+      final granted = await service.requestPermission();
+      state = AsyncValue.data(granted);
+      return granted;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+
+  /// Refreshes permission status from the system (e.g. after returning from OS settings).
+  Future<void> refresh() async {
+    try {
+      final service = ref.read(notificationServiceProvider);
+      final granted = await service.isPermissionGranted();
+      state = AsyncValue.data(granted);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+}
+
+/// Provides reactive notification permission state (true if granted, false otherwise).
+final notificationPermissionProvider =
+    AsyncNotifierProvider<NotificationPermissionNotifier, bool>(
+  NotificationPermissionNotifier.new,
+);

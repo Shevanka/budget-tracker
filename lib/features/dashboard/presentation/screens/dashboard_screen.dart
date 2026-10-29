@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../routing/app_routes.dart';
+import '../../../alerts/presentation/widgets/notification_permission_banner.dart';
 import '../../../budget/providers/budget_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../widgets/widgets.dart';
@@ -86,9 +87,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   onResetCurrent: monthNotifier.resetToCurrentMonth,
                   onMonthSelected: monthNotifier.setMonth,
                 ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Financial Summary Cards
+                // Financial Summary Cards
               summaryAsync.when(
                 loading: () => const SizedBox(
                   height: 220,
@@ -136,6 +137,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
               // Budget Progress Section
               DashboardBudgetSection(selectedYearMonth: selectedMonth),
+
+              // Notification Permission Banner (Android 13+)
+              const NotificationPermissionBanner(),
 
               const SizedBox(height: 20),
 

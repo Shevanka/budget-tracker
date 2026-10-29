@@ -130,6 +130,45 @@ void main() {
       expect(granted, isFalse);
     });
 
+    test('isPermissionGranted delegates to areNotificationsEnabled', () async {
+      when(
+        () => mockPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>(),
+      ).thenReturn(mockAndroidPlugin);
+
+      when(
+        () => mockAndroidPlugin.areNotificationsEnabled(),
+      ).thenAnswer((_) async => true);
+
+      final granted = await service.isPermissionGranted();
+      expect(granted, isTrue);
+      verify(() => mockAndroidPlugin.areNotificationsEnabled()).called(1);
+    });
+
+    test('isPermissionGranted returns false when platform plugin returns false or null', () async {
+      when(
+        () => mockPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>(),
+      ).thenReturn(mockAndroidPlugin);
+
+      when(
+        () => mockAndroidPlugin.areNotificationsEnabled(),
+      ).thenAnswer((_) async => null);
+
+      final granted = await service.isPermissionGranted();
+      expect(granted, isFalse);
+    });
+
+    test('isPermissionGranted returns false when Android platform plugin is unavailable', () async {
+      when(
+        () => mockPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>(),
+      ).thenReturn(null);
+
+      final granted = await service.isPermissionGranted();
+      expect(granted, isFalse);
+    });
+
     test('showBudgetWarning triggers notification on warning channel', () async {
       when(
         () => mockPlugin.show(
