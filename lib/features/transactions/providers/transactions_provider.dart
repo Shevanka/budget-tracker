@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/id_generator.dart';
@@ -6,6 +7,7 @@ import '../../../database/app_database.dart';
 import '../../../database/converters/transaction_type.dart';
 import '../../../database/daos/transaction_dao.dart';
 import '../../../database/database_provider.dart';
+import '../../alerts/providers/alerts_provider.dart';
 import '../domain/models/daily_transaction_group.dart';
 
 /// Reactive stream of all transactions joined with their categories.
@@ -67,8 +69,20 @@ class TransactionController extends AutoDisposeAsyncNotifier<void> {
         updatedAt: const Value.absent(),
       );
       await dao.insertTransaction(entry);
+      final created = await dao.getTransactionById(id);
       state = const AsyncValue.data(null);
-      return await dao.getTransactionById(id);
+
+      if (created != null && created.type == TransactionType.expense) {
+        try {
+          await ref
+              .read(budgetAlertServiceProvider)
+              .checkAndAlertForTransaction(created);
+        } catch (e) {
+          debugPrint('Failed to check budget alert after createTransaction: $e');
+        }
+      }
+
+      return created;
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       return null;
@@ -107,6 +121,20 @@ class TransactionController extends AutoDisposeAsyncNotifier<void> {
       );
       final success = await dao.updateTransaction(entry);
       state = const AsyncValue.data(null);
+
+      if (success && type == TransactionType.expense) {
+        try {
+          final updated = await dao.getTransactionById(id);
+          if (updated != null) {
+            await ref
+                .read(budgetAlertServiceProvider)
+                .checkAndAlertForTransaction(updated);
+          }
+        } catch (e) {
+          debugPrint('Failed to check budget alert after updateTransaction: $e');
+        }
+      }
+
       return success;
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -165,6 +193,17 @@ class TransactionController extends AutoDisposeAsyncNotifier<void> {
       );
       await dao.insertTransaction(entry);
       state = const AsyncValue.data(null);
+
+      if (transaction.type == TransactionType.expense) {
+        try {
+          await ref
+              .read(budgetAlertServiceProvider)
+              .checkAndAlertForTransaction(transaction);
+        } catch (e) {
+          debugPrint('Failed to check budget alert after restoreTransaction: $e');
+        }
+      }
+
       return true;
     } catch (e, st) {
       state = AsyncValue.error(e, st);

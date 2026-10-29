@@ -121,13 +121,17 @@ class LocalNotificationService implements NotificationService {
     const details = NotificationDetails(
       android: NotificationChannels.warningDetails,
     );
-    await _plugin.show(
-      id: id,
-      title: title,
-      body: body,
-      notificationDetails: details,
-      payload: payload,
-    );
+    try {
+      await _plugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: details,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Failed to show budget warning notification: $e');
+    }
   }
 
   @override
@@ -140,13 +144,17 @@ class LocalNotificationService implements NotificationService {
     const details = NotificationDetails(
       android: NotificationChannels.exceededDetails,
     );
-    await _plugin.show(
-      id: id,
-      title: title,
-      body: body,
-      notificationDetails: details,
-      payload: payload,
-    );
+    try {
+      await _plugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: details,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Failed to show budget exceeded notification: $e');
+    }
   }
 
   @override
@@ -159,22 +167,34 @@ class LocalNotificationService implements NotificationService {
     const details = NotificationDetails(
       android: NotificationChannels.reminderDetails,
     );
-    await _plugin.show(
-      id: id,
-      title: title,
-      body: body,
-      notificationDetails: details,
-      payload: payload,
-    );
+    try {
+      await _plugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: details,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Failed to show reminder notification: $e');
+    }
   }
 
   @override
   Future<void> cancel(int id) async {
-    await _plugin.cancel(id: id);
+    try {
+      await _plugin.cancel(id: id);
+    } catch (e) {
+      debugPrint('Failed to cancel notification $id: $e');
+    }
   }
 
   @override
   Future<void> cancelAll() async {
-    await _plugin.cancelAll();
+    try {
+      await _plugin.cancelAll();
+    } catch (e) {
+      debugPrint('Failed to cancel all notifications: $e');
+    }
   }
 }

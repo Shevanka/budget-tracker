@@ -1,20 +1,48 @@
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/converters/transaction_type.dart';
 import 'package:budget_tracker/database/database_provider.dart';
+import 'package:budget_tracker/features/alerts/providers/alerts_provider.dart';
+import 'package:budget_tracker/features/alerts/services/budget_alert_service.dart';
 import 'package:budget_tracker/features/transactions/providers/transactions_provider.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockBudgetAlertService extends Mock implements BudgetAlertService {}
 
 void main() {
   late AppDatabase db;
+  late MockBudgetAlertService mockAlertService;
   late ProviderContainer container;
+
+  setUpAll(() {
+    registerFallbackValue(
+      Transaction(
+        id: 'dummy-tx',
+        amount: 1000,
+        type: TransactionType.expense,
+        categoryId: 'cat-food',
+        source: 'Cash',
+        date: DateTime.utc(2026, 10, 1),
+        createdAt: DateTime.utc(2026, 10, 1),
+        updatedAt: null,
+        note: null,
+      ),
+    );
+  });
 
   setUp(() async {
     db = AppDatabase.inMemory();
+    mockAlertService = MockBudgetAlertService();
+
+    when(() => mockAlertService.checkAndAlertForTransaction(any()))
+        .thenAnswer((_) async => []);
+
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
+        budgetAlertServiceProvider.overrideWithValue(mockAlertService),
       ],
     );
 
@@ -111,13 +139,35 @@ void main() {
       isTrue,
     );
 
+    // Verify alert service was triggered for expense transaction
+    verify(() => mockAlertService.checkAndAlertForTransaction(any(
+          that: isA<Transaction>().having((t) => t.id, 'id', created.id),
+        ))).called(1);
+
     // Verify accessible via transactionByIdProvider
     final fetched = await container.read(transactionByIdProvider(created.id).future);
     expect(fetched, isNotNull);
     expect(fetched!.id, created.id);
   });
 
-  test('TransactionController updateTransaction updates fields and sets updatedAt', () async {
+  test('TransactionController createTransaction skips alert check for income transactions', () async {
+    final controller = container.read(transactionControllerProvider.notifier);
+
+    final created = await controller.createTransaction(
+      amount: 10000000,
+      type: TransactionType.income,
+      categoryId: 'cat-food',
+      source: 'Salary',
+      date: DateTime.utc(2026, 10, 1),
+      note: 'Monthly Salary',
+    );
+
+    expect(created, isNotNull);
+    expect(created!.type, TransactionType.income);
+    verifyNever(() => mockAlertService.checkAndAlertForTransaction(any()));
+  });
+
+  test('TransactionController updateTransaction updates fields, sets updatedAt, and triggers alert for expense', () async {
     final controller = container.read(transactionControllerProvider.notifier);
     final created = await controller.createTransaction(
       amount: 30000,
@@ -130,11 +180,12 @@ void main() {
 
     expect(created, isNotNull);
     expect(created!.updatedAt, isNull);
+    clearInteractions(mockAlertService);
 
     final success = await controller.updateTransaction(
       id: created.id,
       amount: 45000,
-      type: TransactionType.income,
+      type: TransactionType.expense,
       categoryId: 'cat-food',
       source: 'GoPay',
       date: DateTime.utc(2026, 10, 11),
@@ -146,11 +197,33 @@ void main() {
     final updated = await db.transactionDao.getTransactionById(created.id);
     expect(updated, isNotNull);
     expect(updated!.amount, 45000);
-    expect(updated.type, TransactionType.income);
+    expect(updated.type, TransactionType.expense);
     expect(updated.source, 'GoPay');
     expect(updated.note, 'Updated Note');
     expect(updated.updatedAt, isNotNull);
     expect(updated.updatedAt!.isUtc, isTrue);
+
+    verify(() => mockAlertService.checkAndAlertForTransaction(any(
+          that: isA<Transaction>().having((t) => t.id, 'id', created.id),
+        ))).called(1);
+  });
+
+  test('TransactionController createTransaction succeeds even if alert service throws', () async {
+    when(() => mockAlertService.checkAndAlertForTransaction(any()))
+        .thenThrow(Exception('Notification platform channel failed'));
+
+    final controller = container.read(transactionControllerProvider.notifier);
+    final created = await controller.createTransaction(
+      amount: 50000,
+      type: TransactionType.expense,
+      categoryId: 'cat-food',
+      source: 'Cash',
+      date: DateTime.utc(2026, 10, 15),
+      note: 'Coffee',
+    );
+
+    expect(created, isNotNull);
+    expect(await db.transactionDao.getTransactionById(created!.id), isNotNull);
   });
 
   test('TransactionController deleteTransactionWithUndo and restoreTransaction works seamlessly', () async {
@@ -172,6 +245,8 @@ void main() {
     expect(deleted!.id, created.id);
     expect(await db.transactionDao.getTransactionById(created.id), isNull);
 
+    clearInteractions(mockAlertService);
+
     // Restore
     final restored = await controller.restoreTransaction(deleted);
     expect(restored, isTrue);
@@ -181,5 +256,10 @@ void main() {
     expect(retrieved!.id, created.id);
     expect(retrieved.amount, 20000);
     expect(retrieved.source, 'OVO');
+
+    // Restoring expense re-checks alert
+    verify(() => mockAlertService.checkAndAlertForTransaction(any(
+          that: isA<Transaction>().having((t) => t.id, 'id', created.id),
+        ))).called(1);
   });
 }
