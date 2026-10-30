@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../routing/app_routes.dart';
 import '../../../alerts/providers/alerts_provider.dart';
+import '../../../notification_watcher/presentation/widgets/notification_access_dialog.dart';
+import '../../../notification_watcher/providers/notification_watcher_provider.dart';
 
 /// Settings screen providing links to budget and category management,
-/// and toggles/permission controls for budget threshold notifications (Android 13+).
+/// and toggles/permission controls for budget threshold notifications (Android 13+)
+/// and the bank/e-wallet notification watcher (Special App Access).
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -32,6 +35,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(notificationPermissionProvider.notifier).refresh();
+      ref.read(notificationAccessPermissionProvider.notifier).refresh();
     }
   }
 
@@ -39,8 +43,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final permissionAsync = ref.watch(notificationPermissionProvider);
-    final isGranted = permissionAsync.valueOrNull ?? false;
+
+    // Budget alerts permission
+    final alertPermissionAsync = ref.watch(notificationPermissionProvider);
+    final isAlertPermissionGranted = alertPermissionAsync.valueOrNull ?? false;
+
+    // Notification watcher access permission & toggle
+    final accessPermissionAsync = ref.watch(notificationAccessPermissionProvider);
+    final hasNotificationAccess = accessPermissionAsync.valueOrNull ?? false;
+    final isWatcherEnabled = ref.watch(notificationWatcherEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -97,17 +108,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           SwitchListTile(
             secondary: Icon(
-              isGranted
+              isAlertPermissionGranted
                   ? Icons.notifications_active_outlined
                   : Icons.notifications_off_outlined,
             ),
             title: const Text('Budget Alert Notifications'),
             subtitle: Text(
-              isGranted
+              isAlertPermissionGranted
                   ? 'Enabled — 80% warning and 100% exceeded alerts active'
                   : 'Disabled — tap to request notification permission',
             ),
-            value: isGranted,
+            value: isAlertPermissionGranted,
             onChanged: (value) async {
               if (value) {
                 final granted = await ref
@@ -139,8 +150,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             leading: const Icon(Icons.notification_add_outlined),
             title: const Text('Test Budget Alert'),
             subtitle: const Text('Send a sample 80% threshold notification'),
-            enabled: isGranted,
-            onTap: isGranted
+            enabled: isAlertPermissionGranted,
+            onTap: isAlertPermissionGranted
                 ? () async {
                     await ref.read(notificationServiceProvider).showBudgetWarning(
                           id: 999999,
@@ -156,6 +167,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       );
                     }
                   }
+                : null,
+          ),
+          const Divider(),
+
+          // Section: Notification Watcher (Bank & E-Wallet Auto-Recording)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Notification Watcher (Auto-Record)',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            secondary: Icon(
+              hasNotificationAccess && isWatcherEnabled
+                  ? Icons.mark_email_read_outlined
+                  : Icons.mark_email_unread_outlined,
+            ),
+            title: const Text('Bank & E-Wallet Watcher'),
+            subtitle: Text(
+              !hasNotificationAccess
+                  ? 'Access required — tap to grant Notification Access'
+                  : isWatcherEnabled
+                      ? 'Active — auto-capturing BCA, Mandiri, BNI, GoPay, etc.'
+                      : 'Paused — toggle to enable automatic transaction capture',
+            ),
+            value: isWatcherEnabled && hasNotificationAccess,
+            onChanged: (value) async {
+              if (value) {
+                if (!hasNotificationAccess) {
+                  await NotificationAccessDialog.show(context);
+                } else {
+                  ref.read(notificationWatcherEnabledProvider.notifier).state = true;
+                }
+              } else {
+                ref.read(notificationWatcherEnabledProvider.notifier).state = false;
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.security_outlined),
+            title: const Text('Notification Access Status'),
+            subtitle: Text(
+              hasNotificationAccess
+                  ? 'Granted — passive & battery-efficient listener'
+                  : 'Not Granted — special Android permission required',
+            ),
+            trailing: hasNotificationAccess
+                ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
+                : TextButton(
+                    onPressed: () => NotificationAccessDialog.show(context),
+                    child: const Text('Grant'),
+                  ),
+            onTap: !hasNotificationAccess
+                ? () => NotificationAccessDialog.show(context)
                 : null,
           ),
         ],
