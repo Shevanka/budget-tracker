@@ -3,6 +3,12 @@ import 'package:notification_listener_service/notification_event.dart';
 
 import '../constants/watched_apps.dart';
 import '../services/notification_listener_wrapper.dart';
+import '../services/notification_parser.dart';
+
+/// Provides the [NotificationParser] instance for parsing Indonesian bank and e-wallet notifications.
+final notificationParserProvider = Provider<NotificationParser>((ref) {
+  return const NotificationParser();
+});
 
 /// Provides the active [NotificationListenerWrapper] instance.
 final notificationListenerWrapperProvider = Provider<NotificationListenerWrapper>((ref) {
