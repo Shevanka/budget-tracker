@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:notification_listener_service/notification_event.dart';
 
+import '../../../database/app_database.dart';
+import '../../../database/database_provider.dart';
 import '../constants/watched_apps.dart';
 import '../services/notification_listener_wrapper.dart';
+import '../services/notification_log_service.dart';
 import '../services/notification_parser.dart';
+import '../services/notification_watcher_service.dart';
 
 /// Provides the [NotificationParser] instance for parsing Indonesian bank and e-wallet notifications.
 final notificationParserProvider = Provider<NotificationParser>((ref) {
@@ -11,7 +17,8 @@ final notificationParserProvider = Provider<NotificationParser>((ref) {
 });
 
 /// Provides the active [NotificationListenerWrapper] instance.
-final notificationListenerWrapperProvider = Provider<NotificationListenerWrapper>((ref) {
+final notificationListenerWrapperProvider =
+    Provider<NotificationListenerWrapper>((ref) {
   return const DefaultNotificationListenerWrapper();
 });
 
@@ -21,6 +28,37 @@ final notificationWatcherEnabledProvider = StateProvider<bool>((ref) => false);
 /// Set of application package names currently selected to be watched.
 final watchedPackagesProvider = StateProvider<Set<String>>((ref) {
   return Set<String>.from(WatchedApps.allPackageNames);
+});
+
+/// Provides the [NotificationLogService] for logging and querying notification logs.
+final notificationLogServiceProvider = Provider<NotificationLogService>((ref) {
+  final dao = ref.watch(notificationLogDaoProvider);
+  return NotificationLogService(dao);
+});
+
+/// Provides the [NotificationWatcherService] for orchestrating ingestion and parsing.
+final notificationWatcherServiceProvider =
+    Provider<NotificationWatcherService>((ref) {
+  final logService = ref.watch(notificationLogServiceProvider);
+  final parser = ref.watch(notificationParserProvider);
+  return NotificationWatcherService(
+    logService: logService,
+    parser: parser,
+  );
+});
+
+/// Streams unparsed notification logs in real time from the database.
+final unparsedNotificationLogsStreamProvider =
+    StreamProvider.autoDispose<List<NotificationLog>>((ref) {
+  final service = ref.watch(notificationLogServiceProvider);
+  return service.watchUnparsedLogs();
+});
+
+/// Streams all notification logs in real time from the database.
+final allNotificationLogsStreamProvider =
+    StreamProvider.autoDispose<List<NotificationLog>>((ref) {
+  final service = ref.watch(notificationLogServiceProvider);
+  return service.watchAllLogs();
 });
 
 /// State notifier managing the Android Notification Access (Special App Access) permission state.
@@ -77,4 +115,33 @@ final rawIncomingNotificationsStreamProvider =
 
   final wrapper = ref.watch(notificationListenerWrapperProvider);
   return wrapper.notificationsStream;
+});
+
+/// Ingests incoming notifications into `notification_logs`, parses them, and emits
+/// [IncomingNotificationPayload] for auto-recording review.
+final processedIncomingNotificationProvider =
+    StreamProvider.autoDispose<IncomingNotificationPayload>((ref) {
+  final controller = StreamController<IncomingNotificationPayload>();
+  ref.onDispose(controller.close);
+
+  final watcher = ref.watch(notificationWatcherServiceProvider);
+  final watchedPackages = ref.watch(watchedPackagesProvider);
+
+  ref.listen<AsyncValue<ServiceNotificationEvent>>(
+    rawIncomingNotificationsStreamProvider,
+    (_, next) async {
+      final event = next.valueOrNull;
+      if (event != null) {
+        final payload = await watcher.processEvent(
+          event,
+          watchedPackages: watchedPackages,
+        );
+        if (payload != null && !controller.isClosed) {
+          controller.add(payload);
+        }
+      }
+    },
+  );
+
+  return controller.stream;
 });

@@ -1,7 +1,11 @@
 import 'dart:async';
 
+import 'package:budget_tracker/database/app_database.dart';
+import 'package:budget_tracker/database/database_provider.dart';
 import 'package:budget_tracker/features/notification_watcher/providers/notification_watcher_provider.dart';
 import 'package:budget_tracker/features/notification_watcher/services/notification_listener_wrapper.dart';
+import 'package:budget_tracker/features/notification_watcher/services/notification_log_service.dart';
+import 'package:budget_tracker/features/notification_watcher/services/notification_watcher_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -13,16 +17,20 @@ class MockNotificationListenerWrapper extends Mock
 void main() {
   late MockNotificationListenerWrapper mockWrapper;
   late StreamController<ServiceNotificationEvent> streamController;
+  late AppDatabase db;
 
   setUp(() {
     mockWrapper = MockNotificationListenerWrapper();
     streamController = StreamController<ServiceNotificationEvent>.broadcast();
+    db = AppDatabase.inMemory();
+
     when(() => mockWrapper.notificationsStream)
         .thenAnswer((_) => streamController.stream);
   });
 
-  tearDown(() {
+  tearDown(() async {
     streamController.close();
+    await db.close();
   });
 
   group('NotificationWatcherProvider Unit Tests', () {
@@ -163,6 +171,72 @@ void main() {
       expect(events.length, 1);
       expect(events.first.packageName, 'com.gojek.app');
       expect(events.first.content, 'Kamu berhasil bayar Rp 35.000');
+      subscription.close();
+    });
+
+    test('notificationLogServiceProvider and notificationWatcherServiceProvider resolve correctly', () {
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(notificationLogServiceProvider), isA<NotificationLogService>());
+      expect(container.read(notificationWatcherServiceProvider), isA<NotificationWatcherService>());
+    });
+
+    test('processedIncomingNotificationProvider stores log into database and emits payload', () async {
+      when(() => mockWrapper.isPermissionGranted()).thenAnswer((_) async => true);
+
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          notificationListenerWrapperProvider.overrideWithValue(mockWrapper),
+          notificationWatcherEnabledProvider.overrideWith((ref) => true),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // Ensure permission is resolved
+      await container.read(notificationAccessPermissionProvider.future);
+
+      final payloads = <IncomingNotificationPayload>[];
+      final subscription = container.listen<AsyncValue<IncomingNotificationPayload>>(
+        processedIncomingNotificationProvider,
+        (_, next) => next.whenData(payloads.add),
+      );
+
+      final testEvent = ServiceNotificationEvent(
+        id: 3,
+        title: 'BCA',
+        canReply: false,
+        haveExtraPicture: false,
+        hasRemoved: false,
+        packageName: 'com.bca',
+        content: 'Pembelian di INDOMARET Rp 45.000,00 di rek *1234',
+        onGoing: false,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        appIcon: null,
+        extrasPicture: null,
+        largeIcon: null,
+      );
+
+      streamController.add(testEvent);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(payloads.length, 1);
+      final payload = payloads.first;
+      expect(payload.isTransaction, isTrue);
+      expect(payload.log.appPackage, equals('com.bca'));
+      expect(payload.parsed!.amount, equals(45000));
+      expect(payload.parsed!.merchant, equals('INDOMARET'));
+
+      // Check database persistence
+      final unparsedInDb = await container.read(notificationLogServiceProvider).getUnparsedLogs();
+      expect(unparsedInDb.length, 1);
+      expect(unparsedInDb.first.id, equals(payload.log.id));
+
       subscription.close();
     });
   });
