@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/database_provider.dart';
+import 'package:budget_tracker/features/notification_watcher/constants/watched_apps.dart';
 import 'package:budget_tracker/features/notification_watcher/providers/notification_watcher_provider.dart';
 import 'package:budget_tracker/features/notification_watcher/services/notification_listener_wrapper.dart';
 import 'package:budget_tracker/features/notification_watcher/services/notification_log_service.dart';
@@ -238,6 +239,98 @@ void main() {
       expect(unparsedInDb.first.id, equals(payload.log.id));
 
       subscription.close();
+    });
+
+    test('processedIncomingNotificationProvider ignores notification from disabled institution', () async {
+      when(() => mockWrapper.isPermissionGranted()).thenAnswer((_) async => true);
+
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          notificationListenerWrapperProvider.overrideWithValue(mockWrapper),
+          notificationWatcherEnabledProvider.overrideWith((ref) => true),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // Disable BCA
+      container.read(enabledWatchedAppIdsProvider.notifier).setEnabled('bca', false);
+
+      // Ensure permission is resolved
+      await container.read(notificationAccessPermissionProvider.future);
+
+      final payloads = <IncomingNotificationPayload>[];
+      final subscription = container.listen<AsyncValue<IncomingNotificationPayload>>(
+        processedIncomingNotificationProvider,
+        (_, next) => next.whenData(payloads.add),
+      );
+
+      final bcaEvent = ServiceNotificationEvent(
+        id: 4,
+        title: 'BCA',
+        canReply: false,
+        haveExtraPicture: false,
+        hasRemoved: false,
+        packageName: 'com.bca',
+        content: 'Pembelian di INDOMARET Rp 45.000,00 di rek *1234',
+        onGoing: false,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+        appIcon: null,
+        extrasPicture: null,
+        largeIcon: null,
+      );
+
+      streamController.add(bcaEvent);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      // Ignored because BCA was disabled
+      expect(payloads, isEmpty);
+      final logsInDb = await container.read(notificationLogServiceProvider).getAllLogs();
+      expect(logsInDb, isEmpty);
+
+      subscription.close();
+    });
+
+    test('enabledWatchedAppIdsProvider and watchedPackagesProvider management', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      // Initially all apps are enabled
+      final initialIds = container.read(enabledWatchedAppIdsProvider);
+      expect(initialIds.length, equals(WatchedApps.allApps.length));
+      expect(initialIds, contains('bca'));
+      expect(initialIds, contains('gopay'));
+
+      final initialPackages = container.read(watchedPackagesProvider);
+      expect(initialPackages, equals(WatchedApps.allPackageNames));
+      expect(initialPackages, contains('com.gojek.app'));
+      expect(initialPackages, contains('id.co.gopay'));
+
+      // Toggle off gopay
+      container.read(enabledWatchedAppIdsProvider.notifier).toggle('gopay');
+      final updatedIds = container.read(enabledWatchedAppIdsProvider);
+      expect(updatedIds, isNot(contains('gopay')));
+
+      final updatedPackages = container.read(watchedPackagesProvider);
+      expect(updatedPackages, isNot(contains('com.gojek.app')));
+      expect(updatedPackages, isNot(contains('id.co.gopay')));
+      expect(updatedPackages, contains('com.bca'));
+
+      // Deselect all
+      container.read(enabledWatchedAppIdsProvider.notifier).deselectAll();
+      expect(container.read(enabledWatchedAppIdsProvider), isEmpty);
+      expect(container.read(watchedPackagesProvider), isEmpty);
+
+      // Select all
+      container.read(enabledWatchedAppIdsProvider.notifier).selectAll();
+      expect(container.read(enabledWatchedAppIdsProvider).length, equals(WatchedApps.allApps.length));
+      expect(container.read(watchedPackagesProvider), equals(WatchedApps.allPackageNames));
+
+      // Explicit setEnabled
+      container.read(enabledWatchedAppIdsProvider.notifier).setEnabled('bca', false);
+      expect(container.read(enabledWatchedAppIdsProvider), isNot(contains('bca')));
+      container.read(enabledWatchedAppIdsProvider.notifier).setEnabled('bca', true);
+      expect(container.read(enabledWatchedAppIdsProvider), contains('bca'));
     });
   });
 }

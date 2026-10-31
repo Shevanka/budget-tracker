@@ -25,9 +25,65 @@ final notificationListenerWrapperProvider =
 /// Controls whether the notification watcher is globally enabled by the user in Settings.
 final notificationWatcherEnabledProvider = StateProvider<bool>((ref) => false);
 
+/// State notifier managing which Indonesian banks and e-wallets are watched.
+class EnabledWatchedAppsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() {
+    return {for (final app in WatchedApps.allApps) app.id};
+  }
+
+  /// Toggles whether institution [appId] is watched.
+  void toggle(String appId) {
+    if (state.contains(appId)) {
+      state = Set.of(state)..remove(appId);
+    } else {
+      state = Set.of(state)..add(appId);
+    }
+  }
+
+  /// Explicitly sets whether institution [appId] is watched.
+  void setEnabled(String appId, bool enabled) {
+    if (enabled) {
+      if (!state.contains(appId)) {
+        state = Set.of(state)..add(appId);
+      }
+    } else {
+      if (state.contains(appId)) {
+        state = Set.of(state)..remove(appId);
+      }
+    }
+  }
+
+  /// Enables all registered banking and e-wallet applications.
+  void selectAll() {
+    state = {for (final app in WatchedApps.allApps) app.id};
+  }
+
+  /// Deselects all applications.
+  void deselectAll() {
+    state = const {};
+  }
+}
+
+/// Provides the set of institution IDs currently enabled for notification capture.
+final enabledWatchedAppIdsProvider =
+    NotifierProvider<EnabledWatchedAppsNotifier, Set<String>>(
+  EnabledWatchedAppsNotifier.new,
+);
+
 /// Set of application package names currently selected to be watched.
-final watchedPackagesProvider = StateProvider<Set<String>>((ref) {
-  return Set<String>.from(WatchedApps.allPackageNames);
+/// Dynamically computed from [enabledWatchedAppIdsProvider].
+final watchedPackagesProvider = Provider<Set<String>>((ref) {
+  final enabledIds = ref.watch(enabledWatchedAppIdsProvider);
+  final packages = <String>{};
+  for (final app in WatchedApps.allApps) {
+    if (enabledIds.contains(app.id)) {
+      for (final pkg in app.packageNames) {
+        packages.add(pkg.toLowerCase());
+      }
+    }
+  }
+  return packages;
 });
 
 /// Provides the [NotificationLogService] for logging and querying notification logs.

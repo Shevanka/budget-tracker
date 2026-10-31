@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../routing/app_routes.dart';
 import '../../../alerts/providers/alerts_provider.dart';
+import '../../../notification_watcher/constants/watched_apps.dart';
 import '../../../notification_watcher/presentation/widgets/notification_access_dialog.dart';
+import '../../../notification_watcher/presentation/widgets/watched_apps_dialog.dart';
 import '../../../notification_watcher/providers/notification_watcher_provider.dart';
 
 /// Settings screen providing links to budget and category management,
@@ -52,6 +54,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     final accessPermissionAsync = ref.watch(notificationAccessPermissionProvider);
     final hasNotificationAccess = accessPermissionAsync.valueOrNull ?? false;
     final isWatcherEnabled = ref.watch(notificationWatcherEnabledProvider);
+    final enabledWatchedAppIds = ref.watch(enabledWatchedAppIdsProvider);
+
+    final String watchedAppsSubtitle;
+    if (enabledWatchedAppIds.isEmpty) {
+      watchedAppsSubtitle = 'None selected — tap to choose institutions';
+    } else if (enabledWatchedAppIds.length == WatchedApps.allApps.length) {
+      watchedAppsSubtitle =
+          'All ${WatchedApps.allApps.length} banks & e-wallets active (BCA, Mandiri, GoPay, etc.)';
+    } else {
+      watchedAppsSubtitle =
+          '${enabledWatchedAppIds.length} of ${WatchedApps.allApps.length} institutions active';
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -226,6 +240,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             onTap: !hasNotificationAccess
                 ? () => NotificationAccessDialog.show(context)
                 : null,
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.apps_rounded),
+            title: const Text('Watched Applications'),
+            subtitle: Text(watchedAppsSubtitle),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${enabledWatchedAppIds.length}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+            onTap: () => WatchedAppsDialog.show(context),
           ),
         ],
       ),

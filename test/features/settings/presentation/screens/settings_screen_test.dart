@@ -1,6 +1,7 @@
 import 'package:budget_tracker/features/alerts/providers/alerts_provider.dart';
 import 'package:budget_tracker/features/alerts/services/notification_service.dart';
 import 'package:budget_tracker/features/notification_watcher/presentation/widgets/notification_access_dialog.dart';
+import 'package:budget_tracker/features/notification_watcher/presentation/widgets/watched_apps_dialog.dart';
 import 'package:budget_tracker/features/notification_watcher/providers/notification_watcher_provider.dart';
 import 'package:budget_tracker/features/notification_watcher/services/notification_listener_wrapper.dart';
 import 'package:budget_tracker/features/settings/presentation/screens/settings_screen.dart';
@@ -214,5 +215,56 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('renders Watched Applications tile and opens WatchedAppsDialog on tap',
+        (tester) async {
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Scroll to bottom
+      await tester.drag(find.byType(ListView), const Offset(0, -400));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Watched Applications'), findsOneWidget);
+      expect(
+        find.text('All 9 banks & e-wallets active (BCA, Mandiri, GoPay, etc.)'),
+        findsOneWidget,
+      );
+      expect(find.text('9'), findsOneWidget);
+
+      // Tap Watched Applications
+      await tester.tap(find.text('Watched Applications'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(WatchedAppsDialog), findsOneWidget);
+    });
+
+    testWidgets('renders Watched Applications tile with partial count when apps are disabled',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          overrides: [
+            enabledWatchedAppIdsProvider.overrideWith(
+              () => _TestCustomWatchedAppsNotifier({'bca', 'gopay'}),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(ListView), const Offset(0, -400));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 of 9 institutions active'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+    });
   });
+}
+
+class _TestCustomWatchedAppsNotifier extends EnabledWatchedAppsNotifier {
+  final Set<String> _initial;
+  _TestCustomWatchedAppsNotifier(this._initial);
+
+  @override
+  Set<String> build() => _initial;
 }
