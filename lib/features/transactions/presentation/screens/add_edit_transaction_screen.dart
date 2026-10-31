@@ -9,6 +9,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../database/converters/transaction_type.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../categories/presentation/widgets/category_picker_field.dart';
+import '../../../notification_watcher/providers/notification_watcher_provider.dart';
 import '../../providers/transactions_provider.dart';
 
 /// Screen for creating a new transaction or editing an existing one.
@@ -16,9 +17,23 @@ class AddEditTransactionScreen extends ConsumerStatefulWidget {
   const AddEditTransactionScreen({
     super.key,
     this.transactionId,
+    this.initialAmount,
+    this.initialSource,
+    this.initialCategoryId,
+    this.initialNote,
+    this.initialDate,
+    this.initialType,
+    this.notificationLogId,
   });
 
   final String? transactionId;
+  final int? initialAmount;
+  final String? initialSource;
+  final String? initialCategoryId;
+  final String? initialNote;
+  final DateTime? initialDate;
+  final TransactionType? initialType;
+  final String? notificationLogId;
 
   bool get isEditing => transactionId != null && transactionId!.isNotEmpty;
 
@@ -59,7 +74,25 @@ class _AddEditTransactionScreenState
       _isLoadingInitial = true;
       _loadExistingTransaction();
     } else {
-      _sourceController.text = 'Cash';
+      _sourceController.text = widget.initialSource ?? 'Cash';
+      if (widget.initialAmount != null && widget.initialAmount! > 0) {
+        _amountController.text = CurrencyFormatter.format(
+          widget.initialAmount!,
+          includeSymbol: false,
+        );
+      }
+      if (widget.initialCategoryId != null) {
+        _selectedCategoryId = widget.initialCategoryId;
+      }
+      if (widget.initialNote != null) {
+        _noteController.text = widget.initialNote!;
+      }
+      if (widget.initialDate != null) {
+        _selectedDate = widget.initialDate!;
+      }
+      if (widget.initialType != null) {
+        _selectedType = widget.initialType!;
+      }
     }
   }
 
@@ -455,6 +488,13 @@ class _AddEditTransactionScreenState
             ? _noteController.text.trim()
             : null,
       );
+
+      if (created != null && widget.notificationLogId != null) {
+        await ref.read(notificationLogServiceProvider).markAsParsed(
+          logId: widget.notificationLogId!,
+          transactionId: created.id,
+        );
+      }
 
       if (!mounted) return;
       setState(() {

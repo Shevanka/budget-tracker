@@ -5,6 +5,7 @@ import 'package:budget_tracker/features/budget/domain/models/budget_status.dart'
 import 'package:budget_tracker/features/budget/providers/budget_provider.dart';
 import 'package:budget_tracker/features/dashboard/domain/models/financial_summary.dart';
 import 'package:budget_tracker/features/dashboard/providers/dashboard_provider.dart';
+import 'package:budget_tracker/features/notification_watcher/providers/draft_transaction_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,6 +50,9 @@ void main() {
           ),
           recentTransactionsForMonthProvider.overrideWith(
             (ref, month) => Stream.value([]),
+          ),
+          pendingDraftTransactionsProvider.overrideWith(
+            (ref) => Stream.value([]),
           ),
         ],
         child: const BudgetTrackerApp(),

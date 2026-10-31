@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../alerts/presentation/widgets/notification_permission_banner.dart';
 import '../../../budget/providers/budget_provider.dart';
+import '../../../notification_watcher/presentation/widgets/detected_transaction_banner.dart';
 import '../../providers/dashboard_provider.dart';
 import '../widgets/widgets.dart';
 
@@ -90,86 +91,89 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 16),
 
                 // Financial Summary Cards
-              summaryAsync.when(
-                loading: () => const SizedBox(
-                  height: 220,
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-                error: (error, _) => Card(
-                  color: colorScheme.errorContainer,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Icon(Icons.error_outline, color: colorScheme.error),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Failed to load financial summary',
-                          style: TextStyle(color: colorScheme.onErrorContainer),
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton.tonal(
-                          onPressed: () => ref.invalidate(
-                            monthlyFinancialSummaryProvider(selectedMonth),
-                          ),
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                summaryAsync.when(
+                  loading: () => const SizedBox(
+                    height: 220,
+                    child: Center(
+                      child: CircularProgressIndicator(),
                     ),
                   ),
-                ),
-                data: (summary) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Net Balance Card
-                    BalanceCard(summary: summary),
-                    const SizedBox(height: 12),
+                  error: (error, _) => Card(
+                    color: colorScheme.errorContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Icon(Icons.error_outline, color: colorScheme.error),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Failed to load financial summary',
+                            style: TextStyle(color: colorScheme.onErrorContainer),
+                          ),
+                          const SizedBox(height: 8),
+                          FilledButton.tonal(
+                            onPressed: () => ref.invalidate(
+                              monthlyFinancialSummaryProvider(selectedMonth),
+                            ),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  data: (summary) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Net Balance Card
+                      BalanceCard(summary: summary),
+                      const SizedBox(height: 12),
 
-                    // Income & Expense Dual Summary Card
-                    IncomeExpenseSummaryCard(summary: summary),
+                      // Income & Expense Dual Summary Card
+                      IncomeExpenseSummaryCard(summary: summary),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Budget Progress Section
+                DashboardBudgetSection(selectedYearMonth: selectedMonth),
+
+                // Notification Permission Banner (Android 13+)
+                const NotificationPermissionBanner(),
+
+                // Detected Transaction Banner (Bank & E-Wallet Notifications)
+                const DetectedTransactionBanner(),
+
+                const SizedBox(height: 20),
+
+                // Recent Transactions Section
+                DashboardRecentTransactions(selectedYearMonth: selectedMonth),
+
+                const SizedBox(height: 24),
+
+                // Quick Actions
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => context.push(AppRoute.addTransaction.path),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Transaction'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => context.push(AppRoute.budgetSetup.path),
+                      icon: const Icon(Icons.tune),
+                      label: const Text('Setup Budget'),
+                    ),
                   ],
                 ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Budget Progress Section
-              DashboardBudgetSection(selectedYearMonth: selectedMonth),
-
-              // Notification Permission Banner (Android 13+)
-              const NotificationPermissionBanner(),
-
-              const SizedBox(height: 20),
-
-              // Recent Transactions Section
-              DashboardRecentTransactions(selectedYearMonth: selectedMonth),
-
-              const SizedBox(height: 24),
-
-              // Quick Actions
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
-                children: [
-                  FilledButton.icon(
-                    onPressed: () => context.push(AppRoute.addTransaction.path),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Transaction'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => context.push(AppRoute.budgetSetup.path),
-                    icon: const Icon(Icons.tune),
-                    label: const Text('Setup Budget'),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push(AppRoute.addTransaction.path),

@@ -8,10 +8,12 @@ import 'package:budget_tracker/features/categories/providers/categories_provider
 import 'package:budget_tracker/features/dashboard/domain/models/financial_summary.dart';
 import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:budget_tracker/features/dashboard/providers/dashboard_provider.dart';
+import 'package:budget_tracker/features/notification_watcher/providers/draft_transaction_provider.dart';
 import 'package:budget_tracker/features/reports/domain/models/category_spending.dart';
 import 'package:budget_tracker/features/reports/domain/models/spending_over_time.dart';
 import 'package:budget_tracker/features/reports/presentation/screens/reports_screen.dart';
 import 'package:budget_tracker/features/reports/providers/reports_provider.dart';
+import 'package:budget_tracker/features/smart_recording/presentation/screens/smart_recording_review_screen.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/add_edit_transaction_screen.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/transactions_screen.dart';
 import 'package:budget_tracker/features/transactions/providers/transactions_provider.dart';
@@ -36,6 +38,9 @@ void main() {
     return ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),
+        pendingDraftTransactionsProvider.overrideWith(
+          (ref) => Stream.value([]),
+        ),
         groupedTransactionsProvider.overrideWithValue(
           const AsyncValue.data([]),
         ),
@@ -196,7 +201,8 @@ void main() {
       await tester.tap(find.text('Smart Recording Review'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Draft Transactions Review'), findsOneWidget);
+      expect(find.byType(SmartRecordingReviewScreen), findsOneWidget);
+      expect(find.text('Review Transactions'), findsOneWidget);
     });
 
     testWidgets('navigates to Edit Transaction with parameter', (tester) async {

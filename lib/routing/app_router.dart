@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../database/converters/transaction_type.dart';
 import '../features/budget/presentation/screens/budget_setup_screen.dart';
 import '../features/categories/presentation/screens/category_manager_screen.dart';
 import '../features/dashboard/presentation/screens/dashboard_screen.dart';
@@ -87,7 +88,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: AppRoute.addTransaction.path,
         name: AppRoute.addTransaction.name,
-        builder: (context, state) => const AddEditTransactionScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map<String, dynamic>) {
+            return AddEditTransactionScreen(
+              initialAmount: extra['amount'] as int?,
+              initialSource: extra['source'] as String?,
+              initialCategoryId: extra['categoryId'] as String?,
+              initialNote: extra['note'] as String?,
+              initialDate: extra['date'] as DateTime?,
+              initialType: extra['type'] as TransactionType?,
+              notificationLogId: extra['notificationLogId'] as String?,
+            );
+          }
+          return const AddEditTransactionScreen();
+        },
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
