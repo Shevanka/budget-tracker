@@ -79,12 +79,17 @@ abstract final class CategorySuggester {
       'dcrepes',
       'boba',
       'haus',
+      'mixue',
+      'lawson',
+      'kartika sari',
     ],
 
     // 2. Transport & Mobility
     DefaultCategories.transportId: [
       'grab',
       'gojek',
+      'goride',
+      'gocar',
       'uber',
       'maxim',
       'indrive',

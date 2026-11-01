@@ -28,7 +28,7 @@ class NotificationParser {
       source: 'Mandiri',
       packageNames: WatchedApps.mandiri.packageNames,
       regex: RegExp(
-        r'(?:Transaksi\s+debit|Pembayaran(?:\s+QRIS)?)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)\s+(?:telah\s+)?berhasil',
+        r'(?:Transaksi\s+debit|Pembayaran(?:\s+QRIS)?|Transfer\s+keluar|Pembelian)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)\s+(?:telah\s+)?(?:berhasil|sukses)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
@@ -40,7 +40,7 @@ class NotificationParser {
       source: 'BNI',
       packageNames: WatchedApps.bni.packageNames,
       regex: RegExp(
-        r'(?:Transaksi(?:\s+QRIS)?|Pembelian|Transfer\s+keluar)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+pada|\s+(?:telah\s+)?(?:berhasil|sukses)|\.|$)',
+        r'(?:Transaksi(?:\s+QRIS)?|Pembelian|Transfer\s+keluar|Pembayaran)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+pada|\s+(?:telah\s+)?(?:berhasil|sukses)|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
@@ -52,7 +52,7 @@ class NotificationParser {
       source: 'BTN',
       packageNames: WatchedApps.btn.packageNames,
       regex: RegExp(
-        r'(?:Transaksi(?:\s+QRIS)?|Debit(?:\s+rek\s+\d+)?|Pembayaran)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+berhasil|\s+tgl|\.|$)',
+        r'(?:Transaksi(?:\s+QRIS)?|Debit(?:\s+rek\s+\d+)?|Pembayaran|Pembelian|Transfer\s+keluar)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+(?:berhasil|sukses)|\s+tgl|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
@@ -64,7 +64,7 @@ class NotificationParser {
       source: 'SeaBank',
       packageNames: WatchedApps.seaBank.packageNames,
       regex: RegExp(
-        r'(?:Pembayaran(?:\s+QRIS)?|Transfer\s+keluar)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+berhasil|\.|$)',
+        r'(?:Pembayaran(?:\s+QRIS)?|Transfer\s+keluar|Transaksi)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+(?:telah\s+)?(?:berhasil|sukses)|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
@@ -76,7 +76,7 @@ class NotificationParser {
       source: 'ShopeePay',
       packageNames: WatchedApps.shopeePay.packageNames,
       regex: RegExp(
-        r'(?:Pembayaran(?:\s+QRIS)?(?:\s+sebesar)?|Kamu\s+berhasil\s+membayar)\s+Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+menggunakan|\s+berhasil|!|\.|$)',
+        r'(?:Pembayaran(?:\s+QRIS)?(?:\s+sebesar)?|Kamu\s+berhasil\s+membayar|Transaksi\s+berhasil)\s+Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+menggunakan|\s+berhasil|!|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
@@ -88,7 +88,7 @@ class NotificationParser {
       source: 'GoPay',
       packageNames: WatchedApps.goPay.packageNames,
       regex: RegExp(
-        r'Kamu\s+(?:berhasil\s+bayar|telah\s+membayar|bayar)\s+Rp\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+pakai|\s+berhasil|\.|$)',
+        r'(?:Kamu\s+(?:berhasil\s+bayar|telah\s+membayar|bayar)|Pembayaran(?:\s+QRIS)?(?:\s+sebesar)?)\s*Rp\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+pakai|\s+berhasil|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
@@ -100,7 +100,7 @@ class NotificationParser {
       source: 'OVO',
       packageNames: WatchedApps.ovo.packageNames,
       regex: RegExp(
-        r'(?:Transaksi\s+berhasil!\s+)?(?:Pembayaran(?:\s+sebesar)?|Berhasil\s+bayar)\s+Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+berhasil|\.|$)',
+        r'(?:Transaksi\s+berhasil!\s+)?(?:Pembayaran(?:\s+sebesar)?|Berhasil\s+bayar)\s+Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+berhasil|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
@@ -112,7 +112,7 @@ class NotificationParser {
       source: 'DANA',
       packageNames: WatchedApps.dana.packageNames,
       regex: RegExp(
-        r'(?:Pembayaran\s+berhasil!\s+Kamu\s+telah\s+bayar|Bayar)\s+Rp\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+berhasil|\.|$)',
+        r'(?:Pembayaran\s+berhasil!\s+Kamu\s+telah\s+bayar|Bayar|Pembayaran)\s+Rp\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+berhasil|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
@@ -265,8 +265,8 @@ class NotificationParser {
     // Strip trailing time/date remnants like 'pada 03/10/2026'
     cleaned = cleaned.replaceAll(RegExp(r'\s+pada\s+\d{1,2}[/-]\d{1,2}[/-]\d{2,4}.*$', caseSensitive: false), '').trim();
 
-    // Strip trailing payment methods like 'pakai GoPay'
-    cleaned = cleaned.replaceAll(RegExp(r'\s+pakai\s+.*$', caseSensitive: false), '').trim();
+    // Strip trailing payment methods like 'pakai GoPay', 'menggunakan ShopeePay', 'dengan OVO'
+    cleaned = cleaned.replaceAll(RegExp(r'\s+(?:pakai|menggunakan|dengan|melalui)\s+.*$', caseSensitive: false), '').trim();
 
     return cleaned.isEmpty ? 'Unknown' : cleaned;
   }
