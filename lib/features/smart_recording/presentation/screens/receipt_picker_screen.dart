@@ -1,27 +1,399 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Screen allowing the user to select or capture a receipt photo via camera/gallery.
-class ReceiptPickerScreen extends StatelessWidget {
+import '../../models/receipt_scan_result.dart';
+import '../../providers/smart_recording_provider.dart';
+import '../../services/image_picker_wrapper.dart';
+
+/// Screen allowing the user to capture a receipt via camera or pick from gallery,
+/// triggering on-device ML Kit OCR text recognition.
+class ReceiptPickerScreen extends ConsumerWidget {
   const ReceiptPickerScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final state = ref.watch(receiptScannerProvider);
+    final notifier = ref.read(receiptScannerProvider.notifier);
+
+    ref.listen<ReceiptScannerState>(receiptScannerProvider, (_, next) {
+      if (next is ReceiptScannerError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memproses struk: ${next.message}'),
+            backgroundColor: colorScheme.error,
+          ),
+        );
+      } else if (next is ReceiptScannerCancelled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pengambilan gambar dibatalkan.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    });
+
+    final isProcessing = state is ReceiptScannerPicking || state is ReceiptScannerProcessing;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Receipt'),
+        actions: [
+          if (state is ReceiptScannerSuccess)
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Pindai Ulang',
+              onPressed: notifier.reset,
+            ),
+        ],
       ),
-      body: Center(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header card
+                _buildHeaderCard(context),
+                const SizedBox(height: 20),
+
+                // Success Preview or Guidelines
+                if (state is ReceiptScannerSuccess)
+                  _buildSuccessResultCard(context, state.result, notifier)
+                else ...[
+                  _buildScanningTipsCard(context),
+                  const SizedBox(height: 24),
+                  _buildActionButtons(context, notifier, isProcessing),
+                ],
+              ],
+            ),
+          ),
+
+          // Loading / OCR Processing Overlay
+          if (isProcessing)
+            Container(
+              color: Colors.black.withValues(alpha: 0.5),
+              child: Center(
+                child: Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 24,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          state is ReceiptScannerPicking
+                              ? 'Membuka kamera / galeri...'
+                              : 'Membaca teks dari struk...',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'On-device ML Kit Text Recognition',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.receipt_long_rounded,
+              color: colorScheme.onPrimary,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Receipt Scanner',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Capture a photo or pick an image from gallery to extract transaction details.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScanningTipsCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.camera_alt, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'Receipt Scanner',
-              style: Theme.of(context).textTheme.titleLarge,
+            Row(
+              children: [
+                Icon(
+                  Icons.lightbulb_outline_rounded,
+                  color: colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Tips Pemindaian Struk',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildTipRow(
+              context,
+              icon: Icons.wb_sunny_outlined,
+              text: 'Pastikan pencahayaan terang dan tidak ada bayangan gelap.',
             ),
             const SizedBox(height: 8),
-            const Text('Capture a photo or pick an image from gallery'),
+            _buildTipRow(
+              context,
+              icon: Icons.crop_free_rounded,
+              text: 'Ratakan struk dan posisikan tegak lurus di depan kamera.',
+            ),
+            const SizedBox(height: 8),
+            _buildTipRow(
+              context,
+              icon: Icons.check_circle_outline_rounded,
+              text: 'Pastikan nama toko, tanggal, dan total belanja terlihat jelas.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTipRow(
+    BuildContext context, {
+    required IconData icon,
+    required String text,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(
+    BuildContext context,
+    ReceiptScannerNotifier notifier,
+    bool isProcessing,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.icon(
+          onPressed: isProcessing
+              ? null
+              : () => notifier.scanFromSource(ReceiptImageSource.camera),
+          icon: const Icon(Icons.camera_alt_rounded),
+          label: const Text('Ambil Foto Kamera'),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: isProcessing
+              ? null
+              : () => notifier.scanFromSource(ReceiptImageSource.gallery),
+          icon: const Icon(Icons.photo_library_rounded),
+          label: const Text('Pilih dari Galeri'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuccessResultCard(
+    BuildContext context,
+    ReceiptScanResult result,
+    ReceiptScannerNotifier notifier,
+  ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final lines = result.lines;
+    final hasText = result.hasText;
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  hasText
+                      ? Icons.check_circle_rounded
+                      : Icons.warning_amber_rounded,
+                  color: hasText ? Colors.green : colorScheme.error,
+                  size: 24,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    hasText
+                        ? 'Teks Berhasil Dikenali (${lines.length} baris)'
+                        : 'Tidak Ada Teks Terdeteksi',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (hasText) ...[
+              Text(
+                'Pratinjau Hasil OCR:',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 180),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: lines.length,
+                  itemBuilder: (context, index) {
+                    return Text(
+                      lines[index],
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop(result);
+                },
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text('Gunakan Data Struk'),
+              ),
+            ] else ...[
+              Text(
+                'ML Kit tidak dapat mendeteksi teks pada gambar ini. Pastikan struk cukup terang dan tidak buram, lalu coba pindai ulang.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: notifier.reset,
+                icon: const Icon(Icons.replay_rounded),
+                label: const Text('Coba Lagi'),
+              ),
+            ],
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: notifier.reset,
+              child: const Text('Pindai Foto Lain'),
+            ),
           ],
         ),
       ),
