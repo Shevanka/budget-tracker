@@ -8,6 +8,7 @@ import '../../../notification_watcher/constants/watched_apps.dart';
 import '../../../notification_watcher/presentation/widgets/notification_access_dialog.dart';
 import '../../../notification_watcher/presentation/widgets/watched_apps_dialog.dart';
 import '../../../notification_watcher/providers/notification_watcher_provider.dart';
+import '../../../smart_recording/providers/smart_reminder_provider.dart';
 
 /// Settings screen providing links to budget and category management,
 /// and toggles/permission controls for budget threshold notifications (Android 13+)
@@ -49,6 +50,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     // Budget alerts permission
     final alertPermissionAsync = ref.watch(notificationPermissionProvider);
     final isAlertPermissionGranted = alertPermissionAsync.valueOrNull ?? false;
+
+    // Smart Spending Reminder
+    final isReminderEnabled = ref.watch(smartReminderEnabledProvider);
+    final reminderTime = ref.watch(smartReminderTimeProvider);
 
     // Notification watcher access permission & toggle
     final accessPermissionAsync = ref.watch(notificationAccessPermissionProvider);
@@ -177,6 +182,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Test notification sent!'),
+                        ),
+                      );
+                    }
+                  }
+                : null,
+          ),
+          SwitchListTile(
+            secondary: Icon(
+              isReminderEnabled
+                  ? Icons.alarm_on_outlined
+                  : Icons.alarm_off_outlined,
+            ),
+            title: const Text('Daily Spending Reminder'),
+            subtitle: Text(
+              isReminderEnabled
+                  ? 'Active at ${reminderTime.format(context)} — "Did you spend today?"'
+                  : 'Disabled — toggle to receive reminders when no spending is logged',
+            ),
+            value: isReminderEnabled,
+            onChanged: (value) async {
+              ref.read(smartReminderEnabledProvider.notifier).state = value;
+              final reminderService = ref.read(smartReminderServiceProvider);
+              if (value) {
+                reminderService.startPeriodicReminder();
+              } else {
+                await reminderService.cancelReminder();
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.schedule_send_outlined),
+            title: const Text('Test Spending Reminder'),
+            subtitle: const Text('Simulate "Did you spend today?" notification'),
+            enabled: isAlertPermissionGranted,
+            onTap: isAlertPermissionGranted
+                ? () async {
+                    final status = await ref
+                        .read(smartReminderServiceProvider)
+                        .evaluateAndRemind(force: true);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(status.message),
                         ),
                       );
                     }

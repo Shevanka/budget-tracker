@@ -1,3 +1,5 @@
+import 'package:budget_tracker/database/app_database.dart';
+import 'package:budget_tracker/database/database_provider.dart';
 import 'package:budget_tracker/features/alerts/providers/alerts_provider.dart';
 import 'package:budget_tracker/features/alerts/services/notification_service.dart';
 import 'package:budget_tracker/features/notification_watcher/presentation/widgets/notification_access_dialog.dart';
@@ -16,15 +18,22 @@ class MockNotificationListenerWrapper extends Mock
     implements NotificationListenerWrapper {}
 
 void main() {
+  late AppDatabase db;
   late MockNotificationService mockNotificationService;
   late MockNotificationListenerWrapper mockListenerWrapper;
 
   setUp(() {
+    db = AppDatabase.inMemory(seedDefaults: true);
     mockNotificationService = MockNotificationService();
     mockListenerWrapper = MockNotificationListenerWrapper();
 
     when(() => mockListenerWrapper.isPermissionGranted()).thenAnswer((_) async => false);
     when(() => mockListenerWrapper.requestPermission()).thenAnswer((_) async => true);
+    when(() => mockNotificationService.cancel(any())).thenAnswer((_) async {});
+  });
+
+  tearDown(() async {
+    await db.close();
   });
 
   Widget buildTestWidget({
@@ -32,6 +41,7 @@ void main() {
   }) {
     return ProviderScope(
       overrides: [
+        databaseProvider.overrideWithValue(db),
         notificationServiceProvider.overrideWithValue(mockNotificationService),
         notificationListenerWrapperProvider.overrideWithValue(mockListenerWrapper),
         ...overrides,
@@ -60,8 +70,11 @@ void main() {
         findsOneWidget,
       );
 
-      final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-      expect(switches.first.value, isFalse);
+      final alertSwitch = find.descendant(
+        of: find.widgetWithText(SwitchListTile, 'Budget Alert Notifications'),
+        matching: find.byType(Switch),
+      );
+      expect(tester.widget<Switch>(alertSwitch).value, isFalse);
 
       final testAlertTile = tester.widget<ListTile>(
         find.widgetWithText(ListTile, 'Test Budget Alert'),
@@ -83,8 +96,11 @@ void main() {
         findsOneWidget,
       );
 
-      final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-      expect(switches.first.value, isTrue);
+      final alertSwitch = find.descendant(
+        of: find.widgetWithText(SwitchListTile, 'Budget Alert Notifications'),
+        matching: find.byType(Switch),
+      );
+      expect(tester.widget<Switch>(alertSwitch).value, isTrue);
 
       final testAlertTile = tester.widget<ListTile>(
         find.widgetWithText(ListTile, 'Test Budget Alert'),
@@ -102,7 +118,11 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(Switch).first);
+      final alertSwitch = find.descendant(
+        of: find.widgetWithText(SwitchListTile, 'Budget Alert Notifications'),
+        matching: find.byType(Switch),
+      );
+      await tester.tap(alertSwitch);
       await tester.pumpAndSettle();
 
       verify(() => mockNotificationService.requestPermission()).called(1);
@@ -129,18 +149,82 @@ void main() {
       verify(
         () => mockNotificationService.showBudgetWarning(
           id: 999999,
-          title: any(named: 'title'),
-          body: any(named: 'body'),
+          title: 'Peringatan Anggaran: Simulasi',
+          body:
+              'Pengeluaran untuk Makanan telah mencapai 85% (Rp 850.000 dari Rp 1.000.000).',
         ),
       ).called(1);
 
+      expect(find.byType(SnackBar), findsOneWidget);
       expect(find.text('Test notification sent!'), findsOneWidget);
+    });
+
+    testWidgets('renders daily spending reminder switch and toggles state', (tester) async {
+      when(() => mockNotificationService.isPermissionGranted()).thenAnswer((_) async => true);
+
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Daily Spending Reminder'),
+        50,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      expect(find.text('Daily Spending Reminder'), findsOneWidget);
+      expect(find.textContaining('"Did you spend today?"'), findsOneWidget);
+
+      final reminderSwitch = find.descendant(
+        of: find.widgetWithText(SwitchListTile, 'Daily Spending Reminder'),
+        matching: find.byType(Switch),
+      );
+      expect(reminderSwitch, findsOneWidget);
+
+      // Toggle OFF
+      await tester.tap(reminderSwitch);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Disabled — toggle to receive reminders'), findsOneWidget);
+    });
+
+    testWidgets('tapping Test Spending Reminder evaluates and displays confirmation snackbar', (tester) async {
+      when(() => mockNotificationService.isPermissionGranted()).thenAnswer((_) async => true);
+      when(
+        () => mockNotificationService.showReminder(
+          id: any(named: 'id'),
+          title: any(named: 'title'),
+          body: any(named: 'body'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Test Spending Reminder'),
+        50,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      expect(find.text('Test Spending Reminder'), findsOneWidget);
+      await tester.tap(find.text('Test Spending Reminder'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SnackBar),
+          matching: find.textContaining('Reminder sent'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders Notification Watcher section with access status',
         (tester) async {
       when(() => mockNotificationService.isPermissionGranted())
-          .thenAnswer((_) async => false);
+          .thenAnswer((_) async => true);
       when(() => mockListenerWrapper.isPermissionGranted())
           .thenAnswer((_) async => false);
 
@@ -153,18 +237,18 @@ void main() {
 
       expect(find.text('Notification Watcher (Auto-Record)'), findsOneWidget);
       expect(find.text('Bank & E-Wallet Watcher'), findsOneWidget);
+      expect(find.text('Notification Access Status'), findsOneWidget);
       expect(
         find.text('Access required — tap to grant Notification Access'),
         findsOneWidget,
       );
-      expect(find.text('Notification Access Status'), findsOneWidget);
       expect(find.text('Grant'), findsOneWidget);
     });
 
     testWidgets('toggling Bank & E-Wallet Watcher when access not granted shows dialog',
         (tester) async {
       when(() => mockNotificationService.isPermissionGranted())
-          .thenAnswer((_) async => false);
+          .thenAnswer((_) async => true);
       when(() => mockListenerWrapper.isPermissionGranted())
           .thenAnswer((_) async => false);
 
@@ -175,11 +259,14 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
-      // Find the second switch (Watcher switch)
-      final switches = find.byType(Switch);
-      expect(switches, findsNWidgets(2));
+      // Find the watcher switch
+      final watcherSwitch = find.descendant(
+        of: find.widgetWithText(SwitchListTile, 'Bank & E-Wallet Watcher'),
+        matching: find.byType(Switch),
+      );
+      expect(watcherSwitch, findsOneWidget);
 
-      await tester.tap(switches.last);
+      await tester.tap(watcherSwitch);
       await tester.pumpAndSettle();
 
       // Should open NotificationAccessDialog
@@ -206,8 +293,13 @@ void main() {
         findsOneWidget,
       );
 
-      final switches = find.byType(Switch);
-      await tester.tap(switches.last);
+      final watcherSwitch = find.descendant(
+        of: find.widgetWithText(SwitchListTile, 'Bank & E-Wallet Watcher'),
+        matching: find.byType(Switch),
+      );
+      expect(watcherSwitch, findsOneWidget);
+
+      await tester.tap(watcherSwitch);
       await tester.pumpAndSettle();
 
       expect(
