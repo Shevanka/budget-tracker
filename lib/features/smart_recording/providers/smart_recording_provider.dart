@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/parsed_receipt.dart';
 import '../models/receipt_scan_result.dart';
 import '../services/image_picker_wrapper.dart';
 import '../services/receipt_ocr_service.dart';
+import '../services/receipt_parser.dart';
 
 /// Base class representing state transitions for the receipt scanner.
 sealed class ReceiptScannerState {
@@ -104,3 +106,16 @@ final receiptScannerProvider =
 
 /// Holds the most recently scanned [ReceiptScanResult].
 final latestScanResultProvider = StateProvider<ReceiptScanResult?>((ref) => null);
+
+/// Provides the active [ReceiptParser] instance.
+final receiptParserProvider = Provider<ReceiptParser>((ref) {
+  return const ReceiptParser();
+});
+
+/// Automatically derives a [ParsedReceipt] from [latestScanResultProvider].
+final latestParsedReceiptProvider = Provider<ParsedReceipt?>((ref) {
+  final scanResult = ref.watch(latestScanResultProvider);
+  if (scanResult == null) return null;
+  final parser = ref.watch(receiptParserProvider);
+  return parser.parse(scanResult);
+});

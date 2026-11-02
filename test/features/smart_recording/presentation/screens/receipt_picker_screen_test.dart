@@ -73,7 +73,8 @@ void main() {
       verify(() => mockOcrService.processImage(testPath)).called(1);
 
       expect(find.text('Teks Berhasil Dikenali (2 baris)'), findsOneWidget);
-      expect(find.text('INDOMARET'), findsOneWidget);
+      expect(find.text('Toko / Merchant:'), findsOneWidget);
+      expect(find.text('INDOMARET'), findsWidgets);
       expect(find.text('TOTAL Rp 54.000'), findsOneWidget);
       expect(find.text('Gunakan Data Struk'), findsOneWidget);
     });
@@ -102,7 +103,8 @@ void main() {
       verify(() => mockOcrService.processImage(testPath)).called(1);
 
       expect(find.text('Teks Berhasil Dikenali (2 baris)'), findsOneWidget);
-      expect(find.text('ALFAMART'), findsOneWidget);
+      expect(find.text('Toko / Merchant:'), findsOneWidget);
+      expect(find.text('ALFAMART'), findsWidgets);
     });
 
     testWidgets('cancelling picker shows cancellation snackbar', (tester) async {

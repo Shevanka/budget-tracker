@@ -62,7 +62,7 @@ class ReceiptPickerScreen extends ConsumerWidget {
 
                 // Success Preview or Guidelines
                 if (state is ReceiptScannerSuccess)
-                  _buildSuccessResultCard(context, state.result, notifier)
+                  _buildSuccessResultCard(context, ref, state.result, notifier)
                 else ...[
                   _buildScanningTipsCard(context),
                   const SizedBox(height: 24),
@@ -295,6 +295,7 @@ class ReceiptPickerScreen extends ConsumerWidget {
 
   Widget _buildSuccessResultCard(
     BuildContext context,
+    WidgetRef ref,
     ReceiptScanResult result,
     ReceiptScannerNotifier notifier,
   ) {
@@ -302,6 +303,7 @@ class ReceiptPickerScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final lines = result.lines;
     final hasText = result.hasText;
+    final parsed = ref.watch(latestParsedReceiptProvider);
 
     return Card(
       elevation: 2,
@@ -337,6 +339,90 @@ class ReceiptPickerScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             if (hasText) ...[
+              if (parsed != null && parsed.isRecognized) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Toko / Merchant:',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            parsed.merchant ?? '-',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total Belanja:',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            parsed.formattedAmount,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (parsed.suggestedCategoryName != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Kategori Disarankan:',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.secondaryContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                parsed.suggestedCategoryName!,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSecondaryContainer,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               Text(
                 'Pratinjau Hasil OCR:',
                 style: theme.textTheme.labelMedium?.copyWith(
@@ -370,7 +456,7 @@ class ReceiptPickerScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: () {
-                  Navigator.of(context).pop(result);
+                  Navigator.of(context).pop(parsed ?? result);
                 },
                 icon: const Icon(Icons.arrow_forward_rounded),
                 label: const Text('Gunakan Data Struk'),
