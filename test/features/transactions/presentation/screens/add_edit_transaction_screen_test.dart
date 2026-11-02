@@ -1,7 +1,9 @@
+import 'package:budget_tracker/core/constants/default_categories.dart';
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/converters/transaction_type.dart';
 import 'package:budget_tracker/database/database_provider.dart';
 import 'package:budget_tracker/features/categories/providers/categories_provider.dart';
+import 'package:budget_tracker/features/smart_recording/models/parsed_receipt.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/add_edit_transaction_screen.dart';
 import 'package:budget_tracker/routing/app_routes.dart';
 import 'package:drift/drift.dart' as drift;
@@ -14,7 +16,7 @@ void main() {
   late AppDatabase db;
 
   final foodCategory = Category(
-    id: 'cat-food',
+    id: DefaultCategories.foodId,
     name: 'Food',
     icon: 'restaurant',
     color: 0xFF43A047,
@@ -26,7 +28,7 @@ void main() {
   );
 
   final transportCategory = Category(
-    id: 'cat-transport',
+    id: DefaultCategories.transportId,
     name: 'Transport',
     icon: 'directions_car',
     color: 0xFF1E88E5,
@@ -38,7 +40,7 @@ void main() {
   );
 
   final salaryCategory = Category(
-    id: 'cat-salary',
+    id: DefaultCategories.salaryId,
     name: 'Salary',
     icon: 'payments',
     color: 0xFF2E7D32,
@@ -125,8 +127,24 @@ void main() {
         ),
         GoRoute(
           path: AppRoute.receiptPicker.path,
-          builder: (context, state) => const Scaffold(
-            body: Text('Receipt Picker Target'),
+          builder: (context, state) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  context.pop(
+                    ParsedReceipt(
+                      amount: 75000,
+                      merchant: 'KOPI KENANGAN',
+                      date: DateTime.utc(2026, 10, 30),
+                      suggestedCategoryId: DefaultCategories.foodId,
+                      rawText: 'KOPI KENANGAN\nTotal Rp 75.000',
+                      imagePath: '/mock/receipt.jpg',
+                    ),
+                  );
+                },
+                child: const Text('Receipt Picker Target'),
+              ),
+            ),
           ),
         ),
       ],
@@ -223,6 +241,60 @@ void main() {
       expect(find.text('Receipt Picker Target'), findsOneWidget);
     });
 
+    testWidgets('populates fields when receipt scanner returns parsed receipt', (tester) async {
+      await pumpScreen(tester);
+
+      // Tap Scan Receipt
+      await tester.tap(find.text('Scan Receipt (OCR)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Receipt Picker Target'), findsOneWidget);
+
+      // Tap to return ParsedReceipt
+      await tester.tap(find.text('Receipt Picker Target'));
+      await tester.pumpAndSettle();
+
+      // Form fields should be pre-filled
+      final amountField = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, 'Amount'),
+      );
+      expect(amountField.controller?.text, '75.000');
+
+      final noteField = tester.widget<TextFormField>(
+        find.widgetWithText(TextFormField, 'Note (Optional)'),
+      );
+      expect(noteField.controller?.text, 'KOPI KENANGAN');
+
+      // Category should be pre-selected to Food
+      expect(find.text('Food'), findsOneWidget);
+    });
+
+    testWidgets('shows live category suggestion chip when note matches keyword and applies on tap', (tester) async {
+      await pumpScreen(tester);
+
+      // Enter note containing keyword 'kopi'
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Note (Optional)'),
+        'Minum kopi pagi hari',
+      );
+      await tester.pumpAndSettle();
+
+      // Suggestion chip should appear
+      expect(find.byKey(const ValueKey('category_suggestion_chip')), findsOneWidget);
+      expect(find.textContaining('Saran Kategori: Food'), findsOneWidget);
+      expect(find.text('Terapkan'), findsOneWidget);
+
+      // Tap suggestion chip to apply category
+      await tester.tap(find.byKey(const ValueKey('category_suggestion_chip')));
+      await tester.pumpAndSettle();
+
+      // Category should now be Food
+      expect(find.text('Food'), findsOneWidget);
+
+      // Chip should disappear once category matches
+      expect(find.byKey(const ValueKey('category_suggestion_chip')), findsNothing);
+    });
+
     testWidgets('clears selected category when switching between transaction types', (tester) async {
       await pumpScreen(tester);
 
@@ -270,7 +342,7 @@ void main() {
       final created = transactions.first.transaction;
       expect(created.amount, 50000);
       expect(created.type, TransactionType.expense);
-      expect(created.categoryId, 'cat-food');
+      expect(created.categoryId, DefaultCategories.foodId);
       expect(created.source, 'Cash');
       expect(created.note, 'Dinner with friends');
 
@@ -308,7 +380,7 @@ void main() {
       final created = transactions.first.transaction;
       expect(created.amount, 5000000);
       expect(created.type, TransactionType.income);
-      expect(created.categoryId, 'cat-salary');
+      expect(created.categoryId, DefaultCategories.salaryId);
       expect(created.source, 'Mandiri');
 
       // Returns to list and shows snackbar
@@ -326,7 +398,7 @@ void main() {
           id: const drift.Value(existingTxId),
           amount: const drift.Value(75000),
           type: const drift.Value(TransactionType.expense),
-          categoryId: const drift.Value('cat-food'),
+          categoryId: const drift.Value(DefaultCategories.foodId),
           source: const drift.Value('GoPay'),
           date: drift.Value(DateTime.utc(2026, 10, 10, 12, 0)),
           createdAt: drift.Value(DateTime.utc(2026, 10, 10, 12, 0)),
@@ -378,7 +450,7 @@ void main() {
       final updated = await db.transactionDao.getTransactionById(existingTxId);
       expect(updated, isNotNull);
       expect(updated!.amount, 90000);
-      expect(updated.categoryId, 'cat-transport');
+      expect(updated.categoryId, DefaultCategories.transportId);
       expect(updated.updatedAt, isNotNull);
 
       // Returns to list and shows snackbar

@@ -235,6 +235,12 @@ abstract final class CategorySuggester {
     return suggest(text)?.categoryId ?? DefaultCategories.otherId;
   }
 
+  /// Categorizes [text] and returns the matched category ID, or `null` if no keywords match.
+  /// Matches the specification plan: `String? categorize(String merchant)`.
+  static String? categorize(String? text) {
+    return suggest(text)?.categoryId;
+  }
+
   /// Suggests a human-readable category name, falling back to [DefaultCategories.otherName] if no match.
   static String suggestCategoryName(String? text) {
     return suggest(text)?.categoryName ?? DefaultCategories.otherName;

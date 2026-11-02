@@ -10,6 +10,8 @@ import '../../../../database/converters/transaction_type.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../categories/presentation/widgets/category_picker_field.dart';
 import '../../../notification_watcher/providers/notification_watcher_provider.dart';
+import '../../../smart_recording/models/parsed_receipt.dart';
+import '../../../smart_recording/services/category_suggester.dart';
 import '../../providers/transactions_provider.dart';
 
 /// Screen for creating a new transaction or editing an existing one.
@@ -356,11 +358,77 @@ class _AddEditTransactionScreenState
                     fillColor: colorScheme.surfaceContainerLow,
                   ),
                 ),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _noteController,
+                  builder: (context, noteValue, _) {
+                    final note = noteValue.text.trim();
+                    if (note.isEmpty) return const SizedBox.shrink();
+                    final suggestion = CategorySuggester.suggest(note);
+                    if (suggestion == null ||
+                        _selectedCategoryId == suggestion.categoryId) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: InkWell(
+                        key: const ValueKey('category_suggestion_chip'),
+                        onTap: () {
+                          setState(() {
+                            _selectedCategoryId = suggestion.categoryId;
+                            _categoryError = null;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.secondaryContainer
+                                .withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color:
+                                  colorScheme.secondary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.auto_awesome,
+                                size: 16,
+                                color: colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Saran Kategori: ${suggestion.categoryName} ("${suggestion.matchedKeyword}")',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSecondaryContainer,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                'Terapkan',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: colorScheme.secondary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 20),
 
                 // Receipt Scanner Action Button
                 OutlinedButton.icon(
-                  onPressed: () => context.push(AppRoute.receiptPicker.path),
+                  onPressed: _scanReceipt,
                   icon: const Icon(Icons.document_scanner_outlined),
                   label: const Text('Scan Receipt (OCR)'),
                   style: OutlinedButton.styleFrom(
@@ -402,6 +470,32 @@ class _AddEditTransactionScreenState
         ),
       ),
     );
+  }
+
+  Future<void> _scanReceipt() async {
+    final result = await context.push<dynamic>(AppRoute.receiptPicker.path);
+    if (!mounted || result == null) return;
+
+    if (result is ParsedReceipt) {
+      setState(() {
+        if (result.amount != null && result.amount! > 0) {
+          _amountController.text = CurrencyFormatter.format(
+            result.amount!,
+            includeSymbol: false,
+          );
+        }
+        if (result.merchant != null && result.merchant!.isNotEmpty) {
+          _noteController.text = result.merchant!;
+        }
+        if (result.date != null) {
+          _selectedDate = result.date!.toLocal();
+        }
+        if (result.suggestedCategoryId != null) {
+          _selectedCategoryId = result.suggestedCategoryId;
+          _categoryError = null;
+        }
+      });
+    }
   }
 
   Future<void> _pickDate() async {

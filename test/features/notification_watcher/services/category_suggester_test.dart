@@ -126,6 +126,24 @@ void main() {
       expect(CategorySuggester.suggest('   '), isNull);
     });
 
+    test('categorize returns matched category ID or null', () {
+      expect(
+        CategorySuggester.categorize('INDOMARET'),
+        equals(DefaultCategories.shoppingId),
+      );
+      expect(
+        CategorySuggester.categorize('KOPI KENANGAN'),
+        equals(DefaultCategories.foodId),
+      );
+      expect(
+        CategorySuggester.categorize('GRAB'),
+        equals(DefaultCategories.transportId),
+      );
+      expect(CategorySuggester.categorize('ANGGIE WAHYU'), isNull);
+      expect(CategorySuggester.categorize(null), isNull);
+      expect(CategorySuggester.categorize('   '), isNull);
+    });
+
     test('suggestCategoryId and suggestCategoryName fallback to Other category', () {
       expect(
         CategorySuggester.suggestCategoryId('ANGGIE WAHYU'),
