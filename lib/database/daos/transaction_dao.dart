@@ -123,6 +123,16 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  /// Counts the total number of transactions linked to a specific category.
+  Future<int> countTransactionsForCategory(String categoryId) async {
+    final countExp = transactions.id.count();
+    final query = selectOnly(transactions)
+      ..where(transactions.categoryId.equals(categoryId))
+      ..addColumns([countExp]);
+    final result = await query.map((row) => row.read(countExp)).getSingle();
+    return result ?? 0;
+  }
+
   /// Calculates total spent (expense only) for a specific category in a date range.
   /// Automatically normalizes [start] and [end] to UTC.
   Future<int> getTotalSpentForCategory(
@@ -164,6 +174,98 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
     return result ?? 0;
   }
 
+  /// Streams total spent (all expenses) in a date range.
+  Stream<int> watchTotalSpent(DateTime start, DateTime end) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.type.equalsValue(TransactionType.expense) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..addColumns([sumExp]);
+
+    return query.watch().map((rows) {
+      if (rows.isEmpty) return 0;
+      return rows.first.read(sumExp) ?? 0;
+    });
+  }
+
+  /// Streams total spent for a specific category in a date range.
+  Stream<int> watchTotalSpentForCategory(
+    String categoryId,
+    DateTime start,
+    DateTime end,
+  ) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.categoryId.equals(categoryId) &
+            transactions.type.equalsValue(TransactionType.expense) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..addColumns([sumExp]);
+
+    return query.watch().map((rows) {
+      if (rows.isEmpty) return 0;
+      return rows.first.read(sumExp) ?? 0;
+    });
+  }
+
+  /// Calculates total expenses grouped by category ID in a date range.
+  Future<Map<String, int>> getCategoryExpensesByDateRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.type.equalsValue(TransactionType.expense) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..groupBy([transactions.categoryId])
+      ..addColumns([transactions.categoryId, sumExp]);
+
+    final rows = await query.get();
+    return {
+      for (final row in rows)
+        row.read(transactions.categoryId)!: row.read(sumExp) ?? 0,
+    };
+  }
+
+  /// Streams total expenses grouped by category ID in a date range.
+  Stream<Map<String, int>> watchCategoryExpensesByDateRange(
+    DateTime start,
+    DateTime end,
+  ) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.type.equalsValue(TransactionType.expense) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..groupBy([transactions.categoryId])
+      ..addColumns([transactions.categoryId, sumExp]);
+
+    return query.watch().map((rows) {
+      return {
+        for (final row in rows)
+          row.read(transactions.categoryId)!: row.read(sumExp) ?? 0,
+      };
+    });
+  }
+
   /// Calculates total income in a date range.
   /// Automatically normalizes [start] and [end] to UTC.
   Future<int> getTotalIncome(DateTime start, DateTime end) async {
@@ -180,6 +282,43 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
 
     final result = await query.map((row) => row.read(sumExp)).getSingle();
     return result ?? 0;
+  }
+
+  /// Streams total income (all income transactions) in a date range.
+  Stream<int> watchTotalIncome(DateTime start, DateTime end) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final sumExp = transactions.amount.sum();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.type.equalsValue(TransactionType.income) &
+            transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..addColumns([sumExp]);
+
+    return query.watch().map((rows) {
+      if (rows.isEmpty) return 0;
+      return rows.first.read(sumExp) ?? 0;
+    });
+  }
+
+  /// Streams total count of transactions in a date range.
+  Stream<int> watchTransactionCountByDateRange(DateTime start, DateTime end) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final countExp = transactions.id.count();
+    final query = selectOnly(transactions)
+      ..where(
+        transactions.date.isBiggerOrEqualValue(startUtc) &
+            transactions.date.isSmallerOrEqualValue(endUtc),
+      )
+      ..addColumns([countExp]);
+
+    return query.watch().map((rows) {
+      if (rows.isEmpty) return 0;
+      return rows.first.read(countExp) ?? 0;
+    });
   }
 
   /// Streams transactions joined with their categories, ordered by date descending.
@@ -214,6 +353,162 @@ class TransactionDao extends DatabaseAccessor<AppDatabase>
         categories.id.equalsExp(transactions.categoryId),
       ),
     ]);
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    return query.get().then((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
+
+  /// Streams recent transactions joined with their categories in a date range,
+  /// ordered by date descending, then createdAt descending, limited to [limit] items.
+  Stream<List<TransactionWithCategory>> watchRecentTransactionsWithCategoryByDateRange(
+    DateTime start,
+    DateTime end, {
+    int limit = 5,
+  }) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    query.where(
+      transactions.date.isBiggerOrEqualValue(startUtc) &
+          transactions.date.isSmallerOrEqualValue(endUtc),
+    );
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    query.limit(limit);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
+
+  /// Fetches recent transactions joined with their categories in a date range,
+  /// ordered by date descending, then createdAt descending, limited to [limit] items.
+  Future<List<TransactionWithCategory>> getRecentTransactionsWithCategoryByDateRange(
+    DateTime start,
+    DateTime end, {
+    int limit = 5,
+  }) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    query.where(
+      transactions.date.isBiggerOrEqualValue(startUtc) &
+          transactions.date.isSmallerOrEqualValue(endUtc),
+    );
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    query.limit(limit);
+
+    return query.get().then((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
+
+  /// Streams transactions joined with their categories in a date range,
+  /// optionally filtered by [type], ordered by date descending, then createdAt descending.
+  Stream<List<TransactionWithCategory>> watchTransactionsWithCategoryByDateRange(
+    DateTime start,
+    DateTime end, {
+    TransactionType? type,
+  }) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    var whereExpr = transactions.date.isBiggerOrEqualValue(startUtc) &
+        transactions.date.isSmallerOrEqualValue(endUtc);
+
+    if (type != null) {
+      whereExpr = whereExpr & transactions.type.equalsValue(type);
+    }
+
+    query.where(whereExpr);
+
+    query.orderBy([
+      OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),
+      OrderingTerm(expression: transactions.createdAt, mode: OrderingMode.desc),
+    ]);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        return TransactionWithCategory(
+          transaction: row.readTable(transactions),
+          category: row.readTableOrNull(categories),
+        );
+      }).toList();
+    });
+  }
+
+  /// Fetches transactions joined with their categories in a date range,
+  /// optionally filtered by [type], ordered by date descending, then createdAt descending.
+  Future<List<TransactionWithCategory>> getTransactionsWithCategoryByDateRange(
+    DateTime start,
+    DateTime end, {
+    TransactionType? type,
+  }) {
+    final startUtc = start.toUtc();
+    final endUtc = end.toUtc();
+    final query = select(transactions).join([
+      leftOuterJoin(
+        categories,
+        categories.id.equalsExp(transactions.categoryId),
+      ),
+    ]);
+
+    var whereExpr = transactions.date.isBiggerOrEqualValue(startUtc) &
+        transactions.date.isSmallerOrEqualValue(endUtc);
+
+    if (type != null) {
+      whereExpr = whereExpr & transactions.type.equalsValue(type);
+    }
+
+    query.where(whereExpr);
 
     query.orderBy([
       OrderingTerm(expression: transactions.date, mode: OrderingMode.desc),

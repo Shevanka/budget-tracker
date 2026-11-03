@@ -9,6 +9,9 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../database/converters/transaction_type.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../categories/presentation/widgets/category_picker_field.dart';
+import '../../../notification_watcher/providers/notification_watcher_provider.dart';
+import '../../../smart_recording/models/parsed_receipt.dart';
+import '../../../smart_recording/services/category_suggester.dart';
 import '../../providers/transactions_provider.dart';
 
 /// Screen for creating a new transaction or editing an existing one.
@@ -16,9 +19,23 @@ class AddEditTransactionScreen extends ConsumerStatefulWidget {
   const AddEditTransactionScreen({
     super.key,
     this.transactionId,
+    this.initialAmount,
+    this.initialSource,
+    this.initialCategoryId,
+    this.initialNote,
+    this.initialDate,
+    this.initialType,
+    this.notificationLogId,
   });
 
   final String? transactionId;
+  final int? initialAmount;
+  final String? initialSource;
+  final String? initialCategoryId;
+  final String? initialNote;
+  final DateTime? initialDate;
+  final TransactionType? initialType;
+  final String? notificationLogId;
 
   bool get isEditing => transactionId != null && transactionId!.isNotEmpty;
 
@@ -59,7 +76,25 @@ class _AddEditTransactionScreenState
       _isLoadingInitial = true;
       _loadExistingTransaction();
     } else {
-      _sourceController.text = 'Cash';
+      _sourceController.text = widget.initialSource ?? 'Cash';
+      if (widget.initialAmount != null && widget.initialAmount! > 0) {
+        _amountController.text = CurrencyFormatter.format(
+          widget.initialAmount!,
+          includeSymbol: false,
+        );
+      }
+      if (widget.initialCategoryId != null) {
+        _selectedCategoryId = widget.initialCategoryId;
+      }
+      if (widget.initialNote != null) {
+        _noteController.text = widget.initialNote!;
+      }
+      if (widget.initialDate != null) {
+        _selectedDate = widget.initialDate!;
+      }
+      if (widget.initialType != null) {
+        _selectedType = widget.initialType!;
+      }
     }
   }
 
@@ -142,9 +177,14 @@ class _AddEditTransactionScreenState
                   ],
                   selected: {_selectedType},
                   onSelectionChanged: (newSelection) {
-                    setState(() {
-                      _selectedType = newSelection.first;
-                    });
+                    final newType = newSelection.first;
+                    if (newType != _selectedType) {
+                      setState(() {
+                        _selectedType = newType;
+                        _selectedCategoryId = null;
+                        _categoryError = null;
+                      });
+                    }
                   },
                 ),
                 const SizedBox(height: 24),
@@ -194,6 +234,7 @@ class _AddEditTransactionScreenState
                 // Category Picker
                 CategoryPickerField(
                   selectedCategoryId: _selectedCategoryId,
+                  categoryType: _selectedType,
                   errorMessage: _categoryError,
                   onCategorySelected: (cat) {
                     setState(() {
@@ -317,11 +358,77 @@ class _AddEditTransactionScreenState
                     fillColor: colorScheme.surfaceContainerLow,
                   ),
                 ),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _noteController,
+                  builder: (context, noteValue, _) {
+                    final note = noteValue.text.trim();
+                    if (note.isEmpty) return const SizedBox.shrink();
+                    final suggestion = CategorySuggester.suggest(note);
+                    if (suggestion == null ||
+                        _selectedCategoryId == suggestion.categoryId) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: InkWell(
+                        key: const ValueKey('category_suggestion_chip'),
+                        onTap: () {
+                          setState(() {
+                            _selectedCategoryId = suggestion.categoryId;
+                            _categoryError = null;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.secondaryContainer
+                                .withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color:
+                                  colorScheme.secondary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.auto_awesome,
+                                size: 16,
+                                color: colorScheme.secondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Saran Kategori: ${suggestion.categoryName} ("${suggestion.matchedKeyword}")',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSecondaryContainer,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                'Terapkan',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: colorScheme.secondary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 20),
 
                 // Receipt Scanner Action Button
                 OutlinedButton.icon(
-                  onPressed: () => context.push(AppRoute.receiptPicker.path),
+                  onPressed: _scanReceipt,
                   icon: const Icon(Icons.document_scanner_outlined),
                   label: const Text('Scan Receipt (OCR)'),
                   style: OutlinedButton.styleFrom(
@@ -363,6 +470,32 @@ class _AddEditTransactionScreenState
         ),
       ),
     );
+  }
+
+  Future<void> _scanReceipt() async {
+    final result = await context.push<dynamic>(AppRoute.receiptPicker.path);
+    if (!mounted || result == null) return;
+
+    if (result is ParsedReceipt) {
+      setState(() {
+        if (result.amount != null && result.amount! > 0) {
+          _amountController.text = CurrencyFormatter.format(
+            result.amount!,
+            includeSymbol: false,
+          );
+        }
+        if (result.merchant != null && result.merchant!.isNotEmpty) {
+          _noteController.text = result.merchant!;
+        }
+        if (result.date != null) {
+          _selectedDate = result.date!.toLocal();
+        }
+        if (result.suggestedCategoryId != null) {
+          _selectedCategoryId = result.suggestedCategoryId;
+          _categoryError = null;
+        }
+      });
+    }
   }
 
   Future<void> _pickDate() async {
@@ -449,6 +582,13 @@ class _AddEditTransactionScreenState
             ? _noteController.text.trim()
             : null,
       );
+
+      if (created != null && widget.notificationLogId != null) {
+        await ref.read(notificationLogServiceProvider).markAsParsed(
+          logId: widget.notificationLogId!,
+          transactionId: created.id,
+        );
+      }
 
       if (!mounted) return;
       setState(() {

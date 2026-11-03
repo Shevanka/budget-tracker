@@ -1,19 +1,94 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../routing/app_routes.dart';
+import '../../../alerts/providers/alerts_provider.dart';
+import '../../../notification_watcher/constants/watched_apps.dart';
+import '../../../notification_watcher/presentation/widgets/notification_access_dialog.dart';
+import '../../../notification_watcher/presentation/widgets/watched_apps_dialog.dart';
+import '../../../notification_watcher/providers/notification_watcher_provider.dart';
+import '../../../smart_recording/providers/smart_reminder_provider.dart';
 
-class SettingsScreen extends StatelessWidget {
+/// Settings screen providing links to budget and category management,
+/// and toggles/permission controls for budget threshold notifications (Android 13+)
+/// and the bank/e-wallet notification watcher (Special App Access).
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(notificationPermissionProvider.notifier).refresh();
+      ref.read(notificationAccessPermissionProvider.notifier).refresh();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    // Budget alerts permission
+    final alertPermissionAsync = ref.watch(notificationPermissionProvider);
+    final isAlertPermissionGranted = alertPermissionAsync.valueOrNull ?? false;
+
+    // Smart Spending Reminder
+    final isReminderEnabled = ref.watch(smartReminderEnabledProvider);
+    final reminderTime = ref.watch(smartReminderTimeProvider);
+
+    // Notification watcher access permission & toggle
+    final accessPermissionAsync = ref.watch(notificationAccessPermissionProvider);
+    final hasNotificationAccess = accessPermissionAsync.valueOrNull ?? false;
+    final isWatcherEnabled = ref.watch(notificationWatcherEnabledProvider);
+    final enabledWatchedAppIds = ref.watch(enabledWatchedAppIdsProvider);
+
+    final String watchedAppsSubtitle;
+    if (enabledWatchedAppIds.isEmpty) {
+      watchedAppsSubtitle = 'None selected — tap to choose institutions';
+    } else if (enabledWatchedAppIds.length == WatchedApps.allApps.length) {
+      watchedAppsSubtitle =
+          'All ${WatchedApps.allApps.length} banks & e-wallets active (BCA, Mandiri, GoPay, etc.)';
+    } else {
+      watchedAppsSubtitle =
+          '${enabledWatchedAppIds.length} of ${WatchedApps.allApps.length} institutions active';
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
       ),
       body: ListView(
         children: [
+          // Section: Budget & Data
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Budget & Data',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
           ListTile(
             leading: const Icon(Icons.category_outlined),
             title: const Text('Categories'),
@@ -36,6 +111,211 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text('Review intercepted notifications and receipts'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(AppRoute.smartRecordingReview.path),
+          ),
+          const Divider(),
+
+          // Section: Notifications & Alerts (Android 13+ POST_NOTIFICATIONS)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Notifications & Alerts',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            secondary: Icon(
+              isAlertPermissionGranted
+                  ? Icons.notifications_active_outlined
+                  : Icons.notifications_off_outlined,
+            ),
+            title: const Text('Budget Alert Notifications'),
+            subtitle: Text(
+              isAlertPermissionGranted
+                  ? 'Enabled — 80% warning and 100% exceeded alerts active'
+                  : 'Disabled — tap to request notification permission',
+            ),
+            value: isAlertPermissionGranted,
+            onChanged: (value) async {
+              if (value) {
+                final granted = await ref
+                    .read(notificationPermissionProvider.notifier)
+                    .requestPermission();
+                if (!granted && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Notification permission was denied. Please enable it in system settings.',
+                      ),
+                    ),
+                  );
+                }
+              } else {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'To disable notifications, please adjust permissions in system settings.',
+                      ),
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.notification_add_outlined),
+            title: const Text('Test Budget Alert'),
+            subtitle: const Text('Send a sample 80% threshold notification'),
+            enabled: isAlertPermissionGranted,
+            onTap: isAlertPermissionGranted
+                ? () async {
+                    await ref.read(notificationServiceProvider).showBudgetWarning(
+                          id: 999999,
+                          title: 'Peringatan Anggaran: Simulasi',
+                          body:
+                              'Pengeluaran untuk Makanan telah mencapai 85% (Rp 850.000 dari Rp 1.000.000).',
+                        );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Test notification sent!'),
+                        ),
+                      );
+                    }
+                  }
+                : null,
+          ),
+          SwitchListTile(
+            secondary: Icon(
+              isReminderEnabled
+                  ? Icons.alarm_on_outlined
+                  : Icons.alarm_off_outlined,
+            ),
+            title: const Text('Daily Spending Reminder'),
+            subtitle: Text(
+              isReminderEnabled
+                  ? 'Active at ${reminderTime.format(context)} — "Did you spend today?"'
+                  : 'Disabled — toggle to receive reminders when no spending is logged',
+            ),
+            value: isReminderEnabled,
+            onChanged: (value) async {
+              ref.read(smartReminderEnabledProvider.notifier).state = value;
+              final reminderService = ref.read(smartReminderServiceProvider);
+              if (value) {
+                reminderService.startPeriodicReminder();
+              } else {
+                await reminderService.cancelReminder();
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.schedule_send_outlined),
+            title: const Text('Test Spending Reminder'),
+            subtitle: const Text('Simulate "Did you spend today?" notification'),
+            enabled: isAlertPermissionGranted,
+            onTap: isAlertPermissionGranted
+                ? () async {
+                    final status = await ref
+                        .read(smartReminderServiceProvider)
+                        .evaluateAndRemind(force: true);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(status.message),
+                        ),
+                      );
+                    }
+                  }
+                : null,
+          ),
+          const Divider(),
+
+          // Section: Notification Watcher (Bank & E-Wallet Auto-Recording)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Notification Watcher (Auto-Record)',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            secondary: Icon(
+              hasNotificationAccess && isWatcherEnabled
+                  ? Icons.mark_email_read_outlined
+                  : Icons.mark_email_unread_outlined,
+            ),
+            title: const Text('Bank & E-Wallet Watcher'),
+            subtitle: Text(
+              !hasNotificationAccess
+                  ? 'Access required — tap to grant Notification Access'
+                  : isWatcherEnabled
+                      ? 'Active — auto-capturing BCA, Mandiri, BNI, GoPay, etc.'
+                      : 'Paused — toggle to enable automatic transaction capture',
+            ),
+            value: isWatcherEnabled && hasNotificationAccess,
+            onChanged: (value) async {
+              if (value) {
+                if (!hasNotificationAccess) {
+                  await NotificationAccessDialog.show(context);
+                } else {
+                  ref.read(notificationWatcherEnabledProvider.notifier).state = true;
+                }
+              } else {
+                ref.read(notificationWatcherEnabledProvider.notifier).state = false;
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.security_outlined),
+            title: const Text('Notification Access Status'),
+            subtitle: Text(
+              hasNotificationAccess
+                  ? 'Granted — passive & battery-efficient listener'
+                  : 'Not Granted — special Android permission required',
+            ),
+            trailing: hasNotificationAccess
+                ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
+                : TextButton(
+                    onPressed: () => NotificationAccessDialog.show(context),
+                    child: const Text('Grant'),
+                  ),
+            onTap: !hasNotificationAccess
+                ? () => NotificationAccessDialog.show(context)
+                : null,
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.apps_rounded),
+            title: const Text('Watched Applications'),
+            subtitle: Text(watchedAppsSubtitle),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${enabledWatchedAppIds.length}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+            onTap: () => WatchedAppsDialog.show(context),
           ),
         ],
       ),

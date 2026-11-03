@@ -21,6 +21,15 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
         .watchSingleOrNull();
   }
 
+  /// Returns the most recent budget prior to [yearMonth], or `null` if none exists.
+  Future<Budget?> getLatestBudgetBefore(String yearMonth) {
+    return (select(budgets)
+          ..where((tbl) => tbl.yearMonth.isSmallerThanValue(yearMonth))
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.yearMonth)])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   /// Normalizes DateTime fields in [budget] to UTC.
   BudgetsCompanion _normalizeUtc(BudgetsCompanion budget) {
     return budget.copyWith(
@@ -75,6 +84,20 @@ class BudgetDao extends DatabaseAccessor<AppDatabase> with _$BudgetDaoMixin {
     return (select(budgetCategories)
           ..where((tbl) => tbl.budgetId.equals(budgetId)))
         .watch();
+  }
+
+  /// Fetches the limit amount for a specific category in [yearMonth].
+  /// Returns `null` if no budget exists for the month or no limit is set for the category.
+  Future<int?> getCategoryLimit(String yearMonth, String categoryId) async {
+    final budget = await getBudgetForMonth(yearMonth);
+    if (budget == null) return null;
+
+    final query = select(budgetCategories)
+      ..where((tbl) =>
+          tbl.budgetId.equals(budget.id) &
+          tbl.categoryId.equals(categoryId));
+    final result = await query.getSingleOrNull();
+    return result?.limitAmount;
   }
 
   /// Copies budget limits from [fromYearMonth] to [toYearMonth] (monthly rollover).

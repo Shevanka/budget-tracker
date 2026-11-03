@@ -1,48 +1,160 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/widgets/widgets.dart';
 import '../../../../routing/app_routes.dart';
+import '../../../alerts/presentation/widgets/notification_permission_banner.dart';
+import '../../../budget/providers/budget_provider.dart';
+import '../../../notification_watcher/presentation/widgets/detected_transaction_banner.dart';
+import '../../providers/dashboard_provider.dart';
+import '../widgets/widgets.dart';
 
-class DashboardScreen extends StatelessWidget {
+/// The main dashboard screen displaying the active month selector,
+/// net balance card, income & expense summaries, and quick action buttons.
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final month = ref.read(selectedDashboardMonthProvider);
+        ref.read(budgetControllerProvider.notifier).ensureBudgetForMonth(month);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final selectedMonth = ref.watch(selectedDashboardMonthProvider);
+    final monthNotifier = ref.read(selectedDashboardMonthProvider.notifier);
+    final summaryAsync = ref.watch(monthlyFinancialSummaryProvider(selectedMonth));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            onPressed: () => context.push(AppRoute.budgetSetup.path),
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: 'Budget Setup',
+          ),
+          IconButton(
+            onPressed: () => context.push(AppRoute.categoryManager.path),
+            icon: const Icon(Icons.category_outlined),
+            tooltip: 'Categories',
+          ),
+        ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.dashboard, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'Dashboard Overview',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            const Text('Monthly income, expense, and budget summary'),
-            const SizedBox(height: 24),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(monthlyFinancialSummaryProvider(selectedMonth));
+          ref.invalidate(monthlyBudgetStatusProvider(selectedMonth));
+          ref.invalidate(previousAvailableBudgetProvider(selectedMonth));
+          ref.invalidate(recentTransactionsForMonthProvider(selectedMonth));
+          await ref
+              .read(budgetControllerProvider.notifier)
+              .ensureBudgetForMonth(selectedMonth);
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onHorizontalDragEnd: (details) {
+            final velocity = details.primaryVelocity ?? 0;
+            if (velocity < -200) {
+              monthNotifier.nextMonth();
+            } else if (velocity > 200) {
+              monthNotifier.previousMonth();
+            }
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                FilledButton.icon(
-                  onPressed: () => context.push(AppRoute.addTransaction.path),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Transaction'),
+                // Month Selector Header
+                MonthSelectorHeader(
+                  selectedYearMonth: selectedMonth,
+                  onPrevious: monthNotifier.previousMonth,
+                  onNext: monthNotifier.nextMonth,
+                  onResetCurrent: monthNotifier.resetToCurrentMonth,
+                  onMonthSelected: monthNotifier.setMonth,
                 ),
-                OutlinedButton.icon(
-                  onPressed: () => context.push(AppRoute.budgetSetup.path),
-                  icon: const Icon(Icons.tune),
-                  label: const Text('Setup Budget'),
+                const SizedBox(height: 16),
+
+                // Financial Summary Cards
+                summaryAsync.when(
+                  loading: () => const AppLoadingState(
+                    height: 220,
+                    message: 'Loading financial summary...',
+                  ),
+                  error: (error, _) => AppErrorState(
+                    isCard: true,
+                    title: 'Failed to load financial summary',
+                    message: error.toString(),
+                    onRetry: () => ref.invalidate(
+                      monthlyFinancialSummaryProvider(selectedMonth),
+                    ),
+                  ),
+                  data: (summary) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Net Balance Card
+                      BalanceCard(summary: summary),
+                      const SizedBox(height: 12),
+
+                      // Income & Expense Dual Summary Card
+                      IncomeExpenseSummaryCard(summary: summary),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Budget Progress Section
+                DashboardBudgetSection(selectedYearMonth: selectedMonth),
+
+                // Notification Permission Banner (Android 13+)
+                const NotificationPermissionBanner(),
+
+                // Detected Transaction Banner (Bank & E-Wallet Notifications)
+                const DetectedTransactionBanner(),
+
+                const SizedBox(height: 20),
+
+                // Recent Transactions Section
+                DashboardRecentTransactions(selectedYearMonth: selectedMonth),
+
+                const SizedBox(height: 24),
+
+                // Quick Actions
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => context.push(AppRoute.addTransaction.path),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Transaction'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => context.push(AppRoute.budgetSetup.path),
+                      icon: const Icon(Icons.tune),
+                      label: const Text('Setup Budget'),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(

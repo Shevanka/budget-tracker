@@ -51,6 +51,32 @@ class NotificationLogDao extends DatabaseAccessor<AppDatabase>
         .watch();
   }
 
+  /// Fetches all notification logs ordered by receivedAt descending.
+  Future<List<NotificationLog>> getAllLogs({int limit = 50}) {
+    final query = select(notificationLogs)
+      ..orderBy([
+        (tbl) => OrderingTerm(
+            expression: tbl.receivedAt, mode: OrderingMode.desc),
+      ]);
+    if (limit > 0) {
+      query.limit(limit);
+    }
+    return query.get();
+  }
+
+  /// Streams all notification logs ordered by receivedAt descending.
+  Stream<List<NotificationLog>> watchAllLogs({int limit = 50}) {
+    final query = select(notificationLogs)
+      ..orderBy([
+        (tbl) => OrderingTerm(
+            expression: tbl.receivedAt, mode: OrderingMode.desc),
+      ]);
+    if (limit > 0) {
+      query.limit(limit);
+    }
+    return query.watch();
+  }
+
   /// Marks a log as parsed and links it to the confirmed transaction ID.
   Future<int> markAsParsed(String logId, String transactionId) {
     return (update(notificationLogs)..where((tbl) => tbl.id.equals(logId)))

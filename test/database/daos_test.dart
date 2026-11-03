@@ -67,26 +67,79 @@ void main() {
       expect(all.first.isActive, isFalse);
     });
 
-    test('seedCategories inserts multiple categories', () async {
-      final entries = [
+    test('soft delete and restore category works seamlessly', () async {
+      await db.categoryDao.insertCategory(
         CategoriesCompanion(
           id: const drift.Value('cat-1'),
+          name: const drift.Value('Bills'),
+          icon: const drift.Value('receipt'),
+          color: const drift.Value(0xFFE53935),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+        ),
+      );
+
+      expect(await db.categoryDao.countActiveCategories(), 1);
+
+      await db.categoryDao.softDeleteCategory('cat-1');
+      expect(await db.categoryDao.countActiveCategories(), 0);
+
+      final inactive = await db.categoryDao.getAllCategories();
+      expect(inactive.first.isActive, isFalse);
+
+      await db.categoryDao.restoreCategory('cat-1');
+      expect(await db.categoryDao.countActiveCategories(), 1);
+
+      final restored = await db.categoryDao.getActiveCategories();
+      expect(restored.first.isActive, isTrue);
+    });
+
+    test('watchCategories filters by includeInactive and type', () async {
+      await db.categoryDao.insertCategory(
+        CategoriesCompanion(
+          id: const drift.Value('cat-exp-active'),
           name: const drift.Value('Food'),
           icon: const drift.Value('restaurant'),
           color: const drift.Value(0xFF43A047),
+          type: const drift.Value(TransactionType.expense),
           createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
         ),
+      );
+      await db.categoryDao.insertCategory(
         CategoriesCompanion(
-          id: const drift.Value('cat-2'),
-          name: const drift.Value('Shopping'),
-          icon: const drift.Value('shopping_cart'),
-          color: const drift.Value(0xFFFB8C00),
+          id: const drift.Value('cat-exp-inactive'),
+          name: const drift.Value('Old Expense'),
+          icon: const drift.Value('restaurant'),
+          color: const drift.Value(0xFF43A047),
+          type: const drift.Value(TransactionType.expense),
+          isActive: const drift.Value(false),
           createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
         ),
-      ];
+      );
+      await db.categoryDao.insertCategory(
+        CategoriesCompanion(
+          id: const drift.Value('cat-inc-active'),
+          name: const drift.Value('Salary'),
+          icon: const drift.Value('payments'),
+          color: const drift.Value(0xFF2E7D32),
+          type: const drift.Value(TransactionType.income),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+        ),
+      );
 
-      await db.categoryDao.seedCategories(entries);
-      expect(await db.categoryDao.countActiveCategories(), 2);
+      final activeExpenses = await db.categoryDao
+          .watchCategories(type: TransactionType.expense, includeInactive: false)
+          .first;
+      expect(activeExpenses.map((c) => c.id).toList(), ['cat-exp-active']);
+
+      final allExpenses = await db.categoryDao
+          .watchCategories(type: TransactionType.expense, includeInactive: true)
+          .first;
+      expect(allExpenses.length, 2);
+
+      final allIncomes = await db.categoryDao
+          .watchCategories(type: TransactionType.income, includeInactive: true)
+          .first;
+      expect(allIncomes.map((c) => c.id).toList(), ['cat-inc-active']);
     });
   });
 
@@ -218,6 +271,21 @@ void main() {
 
       final transportSpent = await db.transactionDao.getTotalSpentForCategory('cat-transport', start, end);
       expect(transportSpent, 25000);
+
+      final categoryExpenses = await db.transactionDao.getCategoryExpensesByDateRange(start, end);
+      expect(categoryExpenses['cat-food'], 125000);
+      expect(categoryExpenses['cat-transport'], 25000);
+      expect(categoryExpenses.length, 2);
+
+      final totalSpentStreamVal = await db.transactionDao.watchTotalSpent(start, end).first;
+      expect(totalSpentStreamVal, 150000);
+
+      final catSpentStreamVal = await db.transactionDao.watchTotalSpentForCategory('cat-food', start, end).first;
+      expect(catSpentStreamVal, 125000);
+
+      final catExpensesStreamVal = await db.transactionDao.watchCategoryExpensesByDateRange(start, end).first;
+      expect(catExpensesStreamVal['cat-food'], 125000);
+      expect(catExpensesStreamVal['cat-transport'], 25000);
     });
 
     test('watchRecentTransactions returns up to limit in descending order', () async {
@@ -239,6 +307,52 @@ void main() {
       expect(recent.length, 5);
       expect(recent.first.id, 'tx-7');
       expect(recent.last.id, 'tx-3');
+    });
+
+    test('watchRecentTransactionsWithCategoryByDateRange returns up to limit in date range', () async {
+      final start = DateTime.utc(2026, 10, 1);
+      final end = DateTime.utc(2026, 10, 31, 23, 59, 59);
+
+      for (int i = 1; i <= 7; i++) {
+        await db.transactionDao.insertTransaction(
+          TransactionsCompanion(
+            id: drift.Value('tx-range-$i'),
+            amount: drift.Value(i * 15000),
+            type: const drift.Value(TransactionType.expense),
+            categoryId: const drift.Value('cat-food'),
+            source: const drift.Value('Cash'),
+            date: drift.Value(DateTime.utc(2026, 10, i)),
+            createdAt: drift.Value(DateTime.utc(2026, 10, i)),
+          ),
+        );
+      }
+
+      // Add one transaction in September (outside range)
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-sep'),
+          amount: const drift.Value(50000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('Cash'),
+          date: drift.Value(DateTime.utc(2026, 9, 30)),
+          createdAt: drift.Value(DateTime.utc(2026, 9, 30)),
+        ),
+      );
+
+      final recentWithCat = await db.transactionDao
+          .watchRecentTransactionsWithCategoryByDateRange(start, end, limit: 5)
+          .first;
+
+      expect(recentWithCat.length, 5);
+      expect(recentWithCat.first.transaction.id, 'tx-range-7');
+      expect(recentWithCat.last.transaction.id, 'tx-range-3');
+      expect(recentWithCat.first.category?.name, 'Food');
+
+      final getRecentWithCat = await db.transactionDao
+          .getRecentTransactionsWithCategoryByDateRange(start, end, limit: 5);
+      expect(getRecentWithCat.length, 5);
+      expect(getRecentWithCat.first.transaction.id, 'tx-range-7');
     });
 
     test('rejects non-positive amount (amount <= 0) via CHECK constraint', () async {
@@ -344,6 +458,37 @@ void main() {
       expect(streamed.length, 2);
       expect(streamed.first.transaction.id, 'tx-transport');
     });
+
+    test('countTransactionsForCategory returns accurate transaction count', () async {
+      expect(await db.transactionDao.countTransactionsForCategory('cat-food'), 0);
+
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-count-1'),
+          amount: const drift.Value(50000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('Cash'),
+          date: drift.Value(DateTime.utc(2026, 10, 1)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+        ),
+      );
+
+      await db.transactionDao.insertTransaction(
+        TransactionsCompanion(
+          id: const drift.Value('tx-count-2'),
+          amount: const drift.Value(30000),
+          type: const drift.Value(TransactionType.expense),
+          categoryId: const drift.Value('cat-food'),
+          source: const drift.Value('BCA'),
+          date: drift.Value(DateTime.utc(2026, 10, 2)),
+          createdAt: drift.Value(DateTime.utc(2026, 10, 2)),
+        ),
+      );
+
+      expect(await db.transactionDao.countTransactionsForCategory('cat-food'), 2);
+      expect(await db.transactionDao.countTransactionsForCategory('cat-transport'), 0);
+    });
   });
 
   group('BudgetDao', () {
@@ -439,6 +584,65 @@ void main() {
       expect(nextMonthLimits.length, 1);
       expect(nextMonthLimits.first.categoryId, 'cat-food');
       expect(nextMonthLimits.first.limitAmount, 1500000);
+    });
+
+    test('getCategoryLimit returns limit for existing category or null if not set', () async {
+      final budget = BudgetsCompanion(
+        id: const drift.Value('b-2026-10'),
+        yearMonth: const drift.Value('2026-10'),
+        totalLimit: const drift.Value(2000000),
+        createdAt: drift.Value(DateTime.utc(2026, 10, 1)),
+      );
+      final categories = [
+        const BudgetCategoriesCompanion(
+          id: drift.Value('bc-food'),
+          budgetId: drift.Value('b-2026-10'),
+          categoryId: drift.Value('cat-food'),
+          limitAmount: drift.Value(800000),
+        ),
+      ];
+      await db.budgetDao.insertBudgetWithCategories(budget, categories);
+
+      final foodLimit = await db.budgetDao.getCategoryLimit('2026-10', 'cat-food');
+      expect(foodLimit, 800000);
+
+      final otherLimit = await db.budgetDao.getCategoryLimit('2026-10', 'cat-transport');
+      expect(otherLimit, isNull);
+
+      final otherMonthLimit = await db.budgetDao.getCategoryLimit('2026-11', 'cat-food');
+      expect(otherMonthLimit, isNull);
+    });
+
+    test('getLatestBudgetBefore returns latest budget strictly before yearMonth', () async {
+      await db.budgetDao.insertBudgetWithCategories(
+        BudgetsCompanion(
+          id: const drift.Value('b-2026-05'),
+          yearMonth: const drift.Value('2026-05'),
+          totalLimit: const drift.Value(3000000),
+          createdAt: drift.Value(DateTime.utc(2026, 5, 1)),
+        ),
+        [],
+      );
+      await db.budgetDao.insertBudgetWithCategories(
+        BudgetsCompanion(
+          id: const drift.Value('b-2026-08'),
+          yearMonth: const drift.Value('2026-08'),
+          totalLimit: const drift.Value(4000000),
+          createdAt: drift.Value(DateTime.utc(2026, 8, 1)),
+        ),
+        [],
+      );
+
+      final beforeOct = await db.budgetDao.getLatestBudgetBefore('2026-10');
+      expect(beforeOct, isNotNull);
+      expect(beforeOct!.yearMonth, '2026-08');
+
+      final beforeAug = await db.budgetDao.getLatestBudgetBefore('2026-08');
+      expect(beforeAug, isNotNull);
+      expect(beforeAug!.yearMonth, '2026-05');
+
+      final beforeMay = await db.budgetDao.getLatestBudgetBefore('2026-05');
+      expect(beforeMay, isNull);
     });
 
     test('unique yearMonth rejects duplicate budget insertion', () async {

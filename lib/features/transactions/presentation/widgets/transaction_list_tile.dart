@@ -49,70 +49,80 @@ class TransactionListTile extends StatelessWidget {
     final amountPrefix = isExpense ? '-' : '+';
     final amountText = '$amountPrefix${CurrencyFormatter.format(tx.amount)}';
 
-    return InkWell(
-      onTap: onTap ??
-          () {
-            context.push(
-              AppRoute.editTransaction.path.replaceAll(':id', tx.id),
-            );
-          },
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          children: [
-            // Category Icon Badge
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: categoryColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                iconData,
-                color: categoryColor,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 14),
+    final typeStr = isExpense ? 'Pengeluaran' : 'Pemasukan';
+    final semanticLabel = '$titleText, $subtitleText, $typeStr ${CurrencyFormatter.format(tx.amount)}';
 
-            // Note / Category & Source Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    titleText,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+    return Semantics(
+      container: true,
+      button: true,
+      label: semanticLabel,
+      child: InkWell(
+        onTap: onTap ??
+            () {
+              context.push(
+                AppRoute.editTransaction.path.replaceAll(':id', tx.id),
+              );
+            },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              // Category Icon Badge (Exclude decorative icon from screen reader)
+              ExcludeSemantics(
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: categoryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitleText,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Icon(
+                    iconData,
+                    color: categoryColor,
+                    size: 24,
                   ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 14),
 
-            // Amount Display
-            Text(
-              amountText,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: amountColor,
+              // Note / Category & Source Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      titleText,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitleText,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+
+              // Amount Display
+              Text(
+                amountText,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: amountColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

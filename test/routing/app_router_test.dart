@@ -1,8 +1,18 @@
 import 'package:budget_tracker/app.dart';
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/database_provider.dart';
+import 'package:budget_tracker/features/budget/domain/models/budget_status.dart';
+import 'package:budget_tracker/features/budget/providers/budget_provider.dart';
+import 'package:budget_tracker/features/categories/presentation/screens/category_manager_screen.dart';
 import 'package:budget_tracker/features/categories/providers/categories_provider.dart';
-import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:budget_tracker/features/dashboard/domain/models/financial_summary.dart';
+import 'package:budget_tracker/features/dashboard/providers/dashboard_provider.dart';
+import 'package:budget_tracker/features/notification_watcher/providers/draft_transaction_provider.dart';
+import 'package:budget_tracker/features/reports/domain/models/category_spending.dart';
+import 'package:budget_tracker/features/reports/domain/models/spending_over_time.dart';
+import 'package:budget_tracker/features/reports/presentation/screens/reports_screen.dart';
+import 'package:budget_tracker/features/reports/providers/reports_provider.dart';
+import 'package:budget_tracker/features/smart_recording/presentation/screens/smart_recording_review_screen.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/add_edit_transaction_screen.dart';
 import 'package:budget_tracker/features/transactions/presentation/screens/transactions_screen.dart';
 import 'package:budget_tracker/features/transactions/providers/transactions_provider.dart';
@@ -27,11 +37,74 @@ void main() {
     return ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),
+        pendingDraftTransactionsProvider.overrideWith(
+          (ref) => Stream.value([]),
+        ),
         groupedTransactionsProvider.overrideWithValue(
           const AsyncValue.data([]),
         ),
         activeCategoriesProvider.overrideWith(
           (ref) => Stream.value([]),
+        ),
+        activeCategoriesByTypeProvider.overrideWith(
+          (ref, type) => Stream.value([]),
+        ),
+        categoriesByFilterProvider.overrideWith(
+          (ref, filter) => Stream.value([]),
+        ),
+        transactionByIdProvider.overrideWith(
+          (ref, id) => Future.value(null),
+        ),
+        monthlyFinancialSummaryProvider.overrideWith(
+          (ref, month) => Stream.value(
+            MonthlyFinancialSummary(
+              yearMonth: month,
+              totalIncome: 0,
+              totalExpense: 0,
+              netBalance: 0,
+            ),
+          ),
+        ),
+        monthlyBudgetStatusProvider.overrideWith(
+          (ref, month) => Stream.value(
+            MonthlyBudgetStatus(
+              yearMonth: month,
+              totalLimit: 0,
+              totalSpent: 0,
+              totalRemaining: 0,
+              percentage: 0,
+              ratio: 0.0,
+              statusLevel: BudgetStatusLevel.safe,
+              categoryStatuses: const [],
+              unbudgetedSpent: 0,
+            ),
+          ),
+        ),
+        previousAvailableBudgetProvider.overrideWith(
+          (ref, month) => Future.value(null),
+        ),
+        recentTransactionsForMonthProvider.overrideWith(
+          (ref, month) => Stream.value([]),
+        ),
+        categorySpendingReportProvider.overrideWith(
+          (ref, filter) => Stream.value(
+            CategorySpendingReport(
+              items: const [],
+              totalExpense: 0,
+              startDate: filter.startDate,
+              endDate: filter.endDate,
+            ),
+          ),
+        ),
+        spendingOverTimeProvider.overrideWith(
+          (ref, filter) => Stream.value(
+            SpendingOverTimeReport(
+              items: const [],
+              totalExpense: 0,
+              startDate: filter.startDate,
+              endDate: filter.endDate,
+            ),
+          ),
         ),
       ],
       child: const BudgetTrackerApp(),
@@ -43,7 +116,7 @@ void main() {
       await tester.pumpWidget(createTestApp());
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard Overview'), findsOneWidget);
+      expect(find.text('Net Balance'), findsOneWidget);
 
       await tester.tap(find.text('Transactions'));
       await tester.pumpAndSettle();
@@ -59,7 +132,8 @@ void main() {
       await tester.tap(find.text('Reports'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Spending Analytics'), findsOneWidget);
+      expect(find.byType(ReportsScreen), findsOneWidget);
+      expect(find.text('Spending by Category'), findsOneWidget);
     });
 
     testWidgets('switches to Settings tab on tap', (tester) async {
@@ -81,7 +155,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap "Add Transaction" on Dashboard
-      await tester.tap(find.text('Add Transaction').first);
+      final addButton = find.text('Add Transaction').first;
+      await tester.ensureVisible(addButton);
+      await tester.tap(addButton);
       await tester.pumpAndSettle();
 
       expect(find.byType(AddEditTransactionScreen), findsOneWidget);
@@ -92,7 +168,9 @@ void main() {
       await tester.pumpWidget(createTestApp());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Setup Budget'));
+      final setupButton = find.text('Setup Budget');
+      await tester.ensureVisible(setupButton);
+      await tester.tap(setupButton);
       await tester.pumpAndSettle();
 
       expect(find.text('Monthly Budget Setup'), findsOneWidget);
@@ -108,7 +186,8 @@ void main() {
       await tester.tap(find.text('Categories'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Category Management'), findsOneWidget);
+      expect(find.byType(CategoryManagerScreen), findsOneWidget);
+      expect(find.text('Category Manager'), findsOneWidget);
     });
 
     testWidgets('navigates to Smart Recording Review from Settings', (tester) async {
@@ -121,7 +200,8 @@ void main() {
       await tester.tap(find.text('Smart Recording Review'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Draft Transactions Review'), findsOneWidget);
+      expect(find.byType(SmartRecordingReviewScreen), findsOneWidget);
+      expect(find.text('Review Transactions'), findsOneWidget);
     });
 
     testWidgets('navigates to Edit Transaction with parameter', (tester) async {
@@ -129,7 +209,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final BuildContext context =
-          tester.element(find.byType(DashboardScreen));
+          tester.element(find.text('Net Balance'));
       context.push(AppRoute.editTransaction.path.replaceAll(':id', 'tx-123'));
       await tester.pumpAndSettle();
 
@@ -142,12 +222,24 @@ void main() {
       await tester.pumpAndSettle();
 
       final BuildContext context =
-          tester.element(find.byType(DashboardScreen));
+          tester.element(find.text('Net Balance'));
       context.push(AppRoute.receiptPicker.path);
       await tester.pumpAndSettle();
 
       expect(find.text('Scan Receipt'), findsOneWidget);
       expect(find.text('Receipt Scanner'), findsOneWidget);
+    });
+
+    testWidgets('navigates to Receipt Review screen', (tester) async {
+      await tester.pumpWidget(createTestApp());
+      await tester.pumpAndSettle();
+
+      final BuildContext context =
+          tester.element(find.text('Net Balance'));
+      context.push(AppRoute.receiptReview.path);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tinjau Data Struk'), findsOneWidget);
     });
   });
 }
