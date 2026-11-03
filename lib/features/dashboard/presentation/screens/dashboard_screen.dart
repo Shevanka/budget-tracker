@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/widgets/widgets.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../alerts/presentation/widgets/notification_permission_banner.dart';
 import '../../../budget/providers/budget_provider.dart';
@@ -32,8 +33,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final selectedMonth = ref.watch(selectedDashboardMonthProvider);
     final monthNotifier = ref.read(selectedDashboardMonthProvider.notifier);
     final summaryAsync = ref.watch(monthlyFinancialSummaryProvider(selectedMonth));
@@ -92,33 +91,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                 // Financial Summary Cards
                 summaryAsync.when(
-                  loading: () => const SizedBox(
+                  loading: () => const AppLoadingState(
                     height: 220,
-                    child: Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    message: 'Loading financial summary...',
                   ),
-                  error: (error, _) => Card(
-                    color: colorScheme.errorContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Icon(Icons.error_outline, color: colorScheme.error),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Failed to load financial summary',
-                            style: TextStyle(color: colorScheme.onErrorContainer),
-                          ),
-                          const SizedBox(height: 8),
-                          FilledButton.tonal(
-                            onPressed: () => ref.invalidate(
-                              monthlyFinancialSummaryProvider(selectedMonth),
-                            ),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
+                  error: (error, _) => AppErrorState(
+                    isCard: true,
+                    title: 'Failed to load financial summary',
+                    message: error.toString(),
+                    onRetry: () => ref.invalidate(
+                      monthlyFinancialSummaryProvider(selectedMonth),
                     ),
                   ),
                   data: (summary) => Column(

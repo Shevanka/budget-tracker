@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/year_month_utils.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../domain/models/category_spending.dart';
 import '../../domain/models/date_range_filter.dart';
 import '../../providers/reports_provider.dart';
@@ -58,33 +59,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
               // Category Spending Pie Chart
               reportAsync.when(
-                loading: () => const SizedBox(
+                loading: () => const AppLoadingState(
                   height: 280,
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  message: 'Loading spending report...',
                 ),
-                error: (error, _) => Card(
-                  color: colorScheme.errorContainer,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Icon(Icons.error_outline, color: colorScheme.error),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Failed to load spending report',
-                          style: TextStyle(color: colorScheme.onErrorContainer),
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton.tonal(
-                          onPressed: () => ref.invalidate(
-                            categorySpendingReportProvider(currentFilter),
-                          ),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
+                error: (error, _) => AppErrorState(
+                  isCard: true,
+                  title: 'Failed to load spending report',
+                  message: error.toString(),
+                  onRetry: () => ref.invalidate(
+                    categorySpendingReportProvider(currentFilter),
                   ),
                 ),
                 data: (report) => Column(
@@ -164,13 +148,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
               // Spending Over Time Bar Chart
               overTimeAsync.when(
-                loading: () => const SizedBox(
+                loading: () => const AppLoadingState(
                   height: 200,
-                  child: Center(
-                    child: CircularProgressIndicator(),
+                  message: 'Loading spending trends...',
+                ),
+                error: (error, _) => AppErrorState(
+                  isCard: true,
+                  title: 'Failed to load spending trends',
+                  message: error.toString(),
+                  onRetry: () => ref.invalidate(
+                    spendingOverTimeProvider(currentFilter),
                   ),
                 ),
-                error: (error, _) => const SizedBox.shrink(),
                 data: (overTimeReport) => SpendingBarChart(report: overTimeReport),
               ),
               const SizedBox(height: 16),

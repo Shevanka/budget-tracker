@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/widgets/widgets.dart';
 import '../../../../routing/app_routes.dart';
 import '../../models/receipt_scan_result.dart';
 import '../../providers/smart_recording_provider.dart';
@@ -66,6 +67,16 @@ class ReceiptPickerScreen extends ConsumerWidget {
                 if (state is ReceiptScannerSuccess)
                   _buildSuccessResultCard(context, ref, state.result, notifier)
                 else ...[
+                  if (state is ReceiptScannerError) ...[
+                    AppErrorState(
+                      isCard: true,
+                      title: 'Pemindaian Gagal',
+                      message: state.message,
+                      onRetry: notifier.reset,
+                      retryLabel: 'Ulangi Pemindaian',
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   _buildScanningTipsCard(context),
                   const SizedBox(height: 24),
                   _buildActionButtons(context, notifier, isProcessing),

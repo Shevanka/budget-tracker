@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/default_categories.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../categories/presentation/widgets/category_picker_field.dart';
 import '../../../categories/providers/categories_provider.dart';
@@ -19,8 +20,6 @@ class SmartRecordingReviewScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final draftsAsync = ref.watch(pendingDraftTransactionsProvider);
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -52,31 +51,11 @@ class SmartRecordingReviewScreen extends ConsumerWidget {
         ],
       ),
       body: draftsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline_rounded,
-                    size: 48, color: colorScheme.error),
-                const SizedBox(height: 12),
-                Text(
-                  'Failed to load draft transactions',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  error.toString(),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        loading: () => const AppLoadingState(message: 'Memuat draf transaksi...'),
+        error: (error, _) => AppErrorState(
+          title: 'Failed to load draft transactions',
+          message: error.toString(),
+          onRetry: () => ref.invalidate(pendingDraftTransactionsProvider),
         ),
         data: (drafts) {
           if (drafts.isEmpty) {

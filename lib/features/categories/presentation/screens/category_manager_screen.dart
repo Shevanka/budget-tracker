@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/default_categories.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../database/app_database.dart';
 import '../../../../database/converters/transaction_type.dart';
 import '../../providers/categories_provider.dart';
@@ -213,26 +214,11 @@ class _CategoryManagerScreenState extends ConsumerState<CategoryManagerScreen> {
           // Categories List
           Expanded(
             child: categoriesAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              error: (err, _) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: colorScheme.error),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Failed to load categories',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    FilledButton.tonal(
-                      onPressed: () => ref.invalidate(categoriesByFilterProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
+              loading: () => const AppLoadingState(message: 'Loading categories...'),
+              error: (err, _) => AppErrorState(
+                title: 'Failed to load categories',
+                message: err.toString(),
+                onRetry: () => ref.invalidate(categoriesByFilterProvider),
               ),
               data: (categories) {
                 if (categories.isEmpty) {

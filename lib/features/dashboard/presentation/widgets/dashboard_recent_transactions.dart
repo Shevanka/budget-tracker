@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/year_month_utils.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../transactions/presentation/widgets/transaction_list_tile.dart';
 import '../../providers/dashboard_provider.dart';
@@ -68,33 +69,16 @@ class DashboardRecentTransactions extends ConsumerWidget {
         const SizedBox(height: 8),
 
         recentAsync.when(
-          loading: () => const SizedBox(
+          loading: () => const AppLoadingState(
             height: 120,
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
+            message: 'Loading recent transactions...',
           ),
-          error: (error, _) => Card(
-            color: colorScheme.errorContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Icon(Icons.error_outline, color: colorScheme.error),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Failed to load recent transactions',
-                    style: TextStyle(color: colorScheme.onErrorContainer),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton.tonal(
-                    onPressed: () => ref.invalidate(
-                      recentTransactionsForMonthProvider(selectedYearMonth),
-                    ),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+          error: (error, _) => AppErrorState(
+            isCard: true,
+            title: 'Failed to load recent transactions',
+            message: error.toString(),
+            onRetry: () => ref.invalidate(
+              recentTransactionsForMonthProvider(selectedYearMonth),
             ),
           ),
           data: (transactions) {

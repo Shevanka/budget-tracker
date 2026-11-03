@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/year_month_utils.dart';
+import '../../../../core/widgets/widgets.dart';
 import '../../../../routing/app_routes.dart';
 import '../../../budget/presentation/widgets/category_budget_progress_tile.dart';
 import '../../../budget/presentation/widgets/monthly_budget_card.dart';
@@ -60,33 +61,16 @@ class DashboardBudgetSection extends ConsumerWidget {
         const SizedBox(height: 8),
 
         budgetStatusAsync.when(
-          loading: () => const SizedBox(
+          loading: () => const AppLoadingState(
             height: 160,
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
+            message: 'Loading budget progress...',
           ),
-          error: (error, _) => Card(
-            color: colorScheme.errorContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Icon(Icons.error_outline, color: colorScheme.error),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Failed to load budget status',
-                    style: TextStyle(color: colorScheme.onErrorContainer),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton.tonal(
-                    onPressed: () => ref.invalidate(
-                      monthlyBudgetStatusProvider(selectedYearMonth),
-                    ),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+          error: (error, _) => AppErrorState(
+            isCard: true,
+            title: 'Failed to load budget status',
+            message: error.toString(),
+            onRetry: () => ref.invalidate(
+              monthlyBudgetStatusProvider(selectedYearMonth),
             ),
           ),
           data: (status) {
