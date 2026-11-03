@@ -64,6 +64,79 @@ abstract final class DefaultCategories {
     ...incomeNames,
   ];
 
+  static final Map<int, IconData> _codePointMap = {
+    // Food
+    Icons.restaurant.codePoint: Icons.restaurant,
+    Icons.fastfood.codePoint: Icons.fastfood,
+    Icons.local_cafe.codePoint: Icons.local_cafe,
+    Icons.local_bar.codePoint: Icons.local_bar,
+    Icons.cake.codePoint: Icons.cake,
+    Icons.icecream.codePoint: Icons.icecream,
+    Icons.local_pizza.codePoint: Icons.local_pizza,
+
+    // Transport
+    Icons.directions_car.codePoint: Icons.directions_car,
+    Icons.directions_bus.codePoint: Icons.directions_bus,
+    Icons.local_gas_station.codePoint: Icons.local_gas_station,
+    Icons.two_wheeler.codePoint: Icons.two_wheeler,
+    Icons.local_taxi.codePoint: Icons.local_taxi,
+    Icons.flight.codePoint: Icons.flight,
+    Icons.train.codePoint: Icons.train,
+    Icons.commute.codePoint: Icons.commute,
+
+    // Shopping
+    Icons.shopping_bag.codePoint: Icons.shopping_bag,
+    Icons.shopping_cart.codePoint: Icons.shopping_cart,
+    Icons.store.codePoint: Icons.store,
+    Icons.checkroom.codePoint: Icons.checkroom,
+    Icons.sell.codePoint: Icons.sell,
+
+    // Bills
+    Icons.receipt_long.codePoint: Icons.receipt_long,
+    Icons.home.codePoint: Icons.home,
+    Icons.bolt.codePoint: Icons.bolt,
+    Icons.water_drop.codePoint: Icons.water_drop,
+    Icons.wifi.codePoint: Icons.wifi,
+    Icons.phone_android.codePoint: Icons.phone_android,
+    Icons.build.codePoint: Icons.build,
+    Icons.cleaning_services.codePoint: Icons.cleaning_services,
+
+    // Health
+    Icons.medical_services.codePoint: Icons.medical_services,
+    Icons.local_pharmacy.codePoint: Icons.local_pharmacy,
+    Icons.fitness_center.codePoint: Icons.fitness_center,
+    Icons.spa.codePoint: Icons.spa,
+    Icons.sports_soccer.codePoint: Icons.sports_soccer,
+
+    // Leisure
+    Icons.movie.codePoint: Icons.movie,
+    Icons.sports_esports.codePoint: Icons.sports_esports,
+    Icons.music_note.codePoint: Icons.music_note,
+    Icons.pets.codePoint: Icons.pets,
+    Icons.card_giftcard.codePoint: Icons.card_giftcard,
+    Icons.school.codePoint: Icons.school,
+    Icons.menu_book.codePoint: Icons.menu_book,
+
+    // Finance
+    Icons.payments.codePoint: Icons.payments,
+    Icons.trending_up.codePoint: Icons.trending_up,
+    Icons.savings.codePoint: Icons.savings,
+    Icons.work.codePoint: Icons.work,
+    Icons.monetization_on.codePoint: Icons.monetization_on,
+    Icons.account_balance.codePoint: Icons.account_balance,
+    Icons.credit_card.codePoint: Icons.credit_card,
+
+    // Additional aliases & fallbacks from default categories
+    Icons.category.codePoint: Icons.category,
+    Icons.receipt.codePoint: Icons.receipt,
+    Icons.attach_money.codePoint: Icons.attach_money,
+    Icons.health_and_safety.codePoint: Icons.health_and_safety,
+    Icons.theater_comedy.codePoint: Icons.theater_comedy,
+    Icons.redeem.codePoint: Icons.redeem,
+    Icons.account_balance_wallet.codePoint: Icons.account_balance_wallet,
+    Icons.more_horiz.codePoint: Icons.more_horiz,
+  };
+
   /// Helper to convert a stored icon codePoint string or named identifier back to [IconData].
   static IconData getIconData(
     String codePointStr, {
@@ -71,8 +144,7 @@ abstract final class DefaultCategories {
   }) {
     final codePoint = int.tryParse(codePointStr);
     if (codePoint != null) {
-      // ignore: non_const_argument_for_const_parameter
-      return IconData(codePoint, fontFamily: 'MaterialIcons');
+      return _codePointMap[codePoint] ?? fallback;
     }
     return switch (codePointStr) {
       'restaurant' => Icons.restaurant,
