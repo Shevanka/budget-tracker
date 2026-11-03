@@ -112,8 +112,8 @@ class CategoryColorPicker extends StatelessWidget {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOutCubic,
-                      width: 44,
-                      height: 44,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
                         color: Color(colorInt),
                         shape: BoxShape.circle,
@@ -134,10 +134,12 @@ class CategoryColorPicker extends StatelessWidget {
                         ],
                       ),
                       child: isSelected
-                          ? const Icon(
+                          ? Icon(
                               Icons.check,
-                              color: Colors.white,
-                              size: 22,
+                              color: ThemeData.estimateBrightnessForColor(Color(colorInt)) == Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black87,
+                              size: 24,
                             )
                           : null,
                     ),

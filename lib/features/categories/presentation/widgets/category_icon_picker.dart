@@ -417,6 +417,7 @@ class _CategoryIconPickerState extends State<CategoryIconPicker> {
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.clear, size: 18),
+                    tooltip: 'Clear search',
                     onPressed: () {
                       _searchController.clear();
                       setState(() => _searchQuery = '');
@@ -440,30 +441,30 @@ class _CategoryIconPickerState extends State<CategoryIconPicker> {
 
         // Group Filter Chips
         SizedBox(
-          height: 34,
-          child: ListView.separated(
+          height: 48,
+          child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            itemCount: CategoryIconPicker.groups.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 6),
-            itemBuilder: (context, index) {
-              final group = CategoryIconPicker.groups[index];
-              final isSelected = group == _selectedGroup;
-
-              return ChoiceChip(
-                label: Text(group),
-                selected: isSelected,
-                labelStyle: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                visualDensity: VisualDensity.compact,
-                onSelected: (selected) {
-                  if (selected) {
-                    setState(() => _selectedGroup = group);
-                  }
-                },
-              );
-            },
+            child: Row(
+              children: CategoryIconPicker.groups.map((group) {
+                final isSelected = group == _selectedGroup;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(group),
+                    selected: isSelected,
+                    labelStyle: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _selectedGroup = group);
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         ),
         const SizedBox(height: 10),
@@ -502,7 +503,7 @@ class _CategoryIconPickerState extends State<CategoryIconPicker> {
               : GridView.builder(
                   itemCount: filtered.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 6,
+                    crossAxisCount: 5,
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
                   ),
@@ -536,7 +537,9 @@ class _CategoryIconPickerState extends State<CategoryIconPicker> {
                             child: Icon(
                               item.icon,
                               color: isSelected
-                                  ? Colors.white
+                                  ? (ThemeData.estimateBrightnessForColor(Color(widget.selectedColor)) == Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black87)
                                   : colorScheme.onSurfaceVariant,
                               size: 22,
                             ),

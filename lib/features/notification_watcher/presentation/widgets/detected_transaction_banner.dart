@@ -33,71 +33,82 @@ class DetectedTransactionBanner extends ConsumerWidget {
             ? '${firstDraft.formattedAmount} di ${firstDraft.merchant} (${firstDraft.source})'
             : 'Ketuk untuk meninjau dan mengonfirmasi pengeluaran dari bank & e-wallet';
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Material(
-            color: colorScheme.primaryContainer.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              onTap: () => context.push(AppRoute.smartRecordingReview.path),
+        return Semantics(
+          container: true,
+          liveRegion: true,
+          label: '$title. $subtitle. Ketuk tombol Review untuk meninjau.',
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Material(
+              color: colorScheme.primaryContainer.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: colorScheme.primary.withValues(alpha: 0.2),
+              child: InkWell(
+                onTap: () => context.push(AppRoute.smartRecordingReview.path),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.notifications_active_rounded,
-                        color: colorScheme.onPrimary,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onPrimaryContainer,
-                            ),
+                  child: Row(
+                    children: [
+                      ExcludeSemantics(
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary,
+                            shape: BoxShape.circle,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          child: Icon(
+                            Icons.notifications_active_rounded,
+                            color: colorScheme.onPrimary,
+                            size: 24,
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(
-                      onPressed: () => context.push(AppRoute.smartRecordingReview.path),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        visualDensity: VisualDensity.compact,
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              subtitle,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
-                      child: const Text('Review'),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Semantics(
+                        button: true,
+                        label: 'Tinjau $count transaksi terdeteksi',
+                        child: FilledButton.tonal(
+                          onPressed: () => context.push(AppRoute.smartRecordingReview.path),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            minimumSize: const Size(64, 48),
+                          ),
+                          child: const Text('Review'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

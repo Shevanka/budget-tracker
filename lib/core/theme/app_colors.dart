@@ -11,7 +11,8 @@ abstract final class AppColors {
 
   // Budget Status Thresholds (<80% safe, 80-99% warning, >=100% danger)
   static const Color budgetSafe = Color(0xFF2E7D32);
-  static const Color budgetWarning = Color(0xFFF57F17);
+  // Darkened to achieve WCAG AA contrast (>= 4.5:1) against light surfaces
+  static const Color budgetWarning = Color(0xFF9E5400);
   static const Color budgetDanger = Color(0xFFC62828);
 
   // Category Palette (16 distinct colors for user custom categories)

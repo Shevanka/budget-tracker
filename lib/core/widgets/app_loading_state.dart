@@ -31,7 +31,10 @@ class AppLoadingState extends StatelessWidget {
           SizedBox(
             width: indicatorSize,
             height: indicatorSize,
-            child: const CircularProgressIndicator(strokeWidth: 3),
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              semanticsLabel: message ?? 'Memuat data',
+            ),
           ),
           if (message != null) ...[
             const SizedBox(height: 14),

@@ -218,6 +218,7 @@ class _BudgetSetupScreenState extends ConsumerState<BudgetSetupScreen> {
                       const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.close),
+                        tooltip: 'Tutup',
                         onPressed: () => Navigator.of(sheetContext).pop(),
                       ),
                     ],
@@ -801,6 +802,8 @@ class _BudgetSetupScreenState extends ConsumerState<BudgetSetupScreen> {
               child: LinearProgressIndicator(
                 value: ratio,
                 minHeight: 8,
+                semanticsLabel: 'Budget allocation progress',
+                semanticsValue: '${(ratio * 100).toInt()}%',
                 backgroundColor: colorScheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(progressColor),
               ),
@@ -835,27 +838,31 @@ class _BudgetSetupScreenState extends ConsumerState<BudgetSetupScreen> {
             // Warning Banner if category limits exceed total budget (as specified in master plan)
             if (isOver) ...[
               const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: colorScheme.onErrorContainer, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Warning: Category limits (${CurrencyFormatter.format(allocated)}) exceed the total budget (${CurrencyFormatter.format(total)}) by ${CurrencyFormatter.format(allocated - total)}.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onErrorContainer,
-                          fontWeight: FontWeight.w600,
+              Semantics(
+                container: true,
+                liveRegion: true,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          color: colorScheme.onErrorContainer, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Warning: Category limits (${CurrencyFormatter.format(allocated)}) exceed the total budget (${CurrencyFormatter.format(total)}) by ${CurrencyFormatter.format(allocated - total)}.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onErrorContainer,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

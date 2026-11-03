@@ -346,14 +346,17 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
                           source.toLowerCase();
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(source),
-                          selected: isSelected,
-                          onSelected: (_) {
-                            setState(() {
-                              _sourceController.text = source;
-                            });
-                          },
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 48),
+                          child: ChoiceChip(
+                            label: Text(source),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              setState(() {
+                                _sourceController.text = source;
+                              });
+                            },
+                          ),
                         ),
                       );
                     }).toList(),
@@ -362,52 +365,56 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
                 const SizedBox(height: 20),
 
                 // 6. Transaction Date Picker
-                InkWell(
-                  onTap: _pickDate,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.5),
+                Semantics(
+                  button: true,
+                  label: 'Ubah Tanggal Transaksi: ${DateFormat('EEEE, d MMMM yyyy').format(_selectedDate)}',
+                  child: InkWell(
+                    onTap: _pickDate,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: colorScheme.outline.withValues(alpha: 0.5),
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        color: colorScheme.surfaceContainerLow,
                       ),
-                      borderRadius: BorderRadius.circular(16),
-                      color: colorScheme.surfaceContainerLow,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today_outlined,
-                          color: colorScheme.onSurfaceVariant,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Tanggal Transaksi',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            color: colorScheme.onSurfaceVariant,
+                            size: 22,
                           ),
-                        ),
-                        Icon(
-                          Icons.edit_calendar_outlined,
-                          size: 20,
-                          color: colorScheme.primary,
-                        ),
-                      ],
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Tanggal Transaksi',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.edit_calendar_outlined,
+                            size: 20,
+                            color: colorScheme.primary,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

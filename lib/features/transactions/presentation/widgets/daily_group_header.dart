@@ -18,46 +18,53 @@ class DailyGroupHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final dateLabel = group.getDateHeaderLabel();
+    final expensePart = group.totalExpense > 0 ? ', pengeluaran ${CurrencyFormatter.format(group.totalExpense)}' : '';
+    final incomePart = group.totalIncome > 0 ? ', pemasukan ${CurrencyFormatter.format(group.totalIncome)}' : '';
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            dateLabel,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurfaceVariant,
+    return Semantics(
+      header: true,
+      container: true,
+      label: '$dateLabel$expensePart$incomePart',
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              dateLabel,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-          Row(
-            children: [
-              if (group.totalExpense > 0)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(
-                    '-${CurrencyFormatter.format(group.totalExpense)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.expense,
-                      fontWeight: FontWeight.w600,
+            Row(
+              children: [
+                if (group.totalExpense > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                      '-${CurrencyFormatter.format(group.totalExpense)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.expense,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-              if (group.totalIncome > 0)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Text(
-                    '+${CurrencyFormatter.format(group.totalIncome)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.income,
-                      fontWeight: FontWeight.w600,
+                if (group.totalIncome > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                      '+${CurrencyFormatter.format(group.totalIncome)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.income,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

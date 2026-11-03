@@ -129,40 +129,49 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
             const SizedBox(height: 20),
 
             // Donut Pie Chart Container
-            SizedBox(
-              height: 240,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  PieChart(
-                    PieChartData(
-                      pieTouchData: PieTouchData(
-                        touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                          if (!event.isInterestedForInteractions ||
-                              pieTouchResponse == null ||
-                              pieTouchResponse.touchedSection == null) {
-                            return;
-                          }
-                          final index = pieTouchResponse
-                              .touchedSection!.touchedSectionIndex;
-                          if (event is FlTapUpEvent && index >= 0) {
-                            _handleSectionTap(index);
-                          }
-                        },
+            Semantics(
+              container: true,
+              label: report.isEmpty
+                  ? 'Spending breakdown chart. No expenses in this period.'
+                  : 'Spending by Category chart. Total spent: ${report.totalExpense.toIdr()}. '
+                      'Breakdown: ${report.items.map((e) => "${e.category.name} ${e.percentage.toStringAsFixed(0)}%").join(", ")}',
+              child: SizedBox(
+                height: 240,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ExcludeSemantics(
+                      child: PieChart(
+                        PieChartData(
+                          pieTouchData: PieTouchData(
+                            touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                              if (!event.isInterestedForInteractions ||
+                                  pieTouchResponse == null ||
+                                  pieTouchResponse.touchedSection == null) {
+                                return;
+                              }
+                              final index = pieTouchResponse
+                                  .touchedSection!.touchedSectionIndex;
+                              if (event is FlTapUpEvent && index >= 0) {
+                                _handleSectionTap(index);
+                              }
+                            },
+                          ),
+                          startDegreeOffset: -90,
+                          borderData: FlBorderData(show: false),
+                          sectionsSpace: report.hasData ? 2.5 : 0,
+                          centerSpaceRadius: 65,
+                          sections: _buildSections(colorScheme),
+                        ),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
                       ),
-                      startDegreeOffset: -90,
-                      borderData: FlBorderData(show: false),
-                      sectionsSpace: report.hasData ? 2.5 : 0,
-                      centerSpaceRadius: 65,
-                      sections: _buildSections(colorScheme),
                     ),
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  ),
 
-                  // Center Donut Hole Content
-                  _buildCenterContent(theme, colorScheme),
-                ],
+                    // Center Donut Hole Content
+                    _buildCenterContent(theme, colorScheme),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -309,51 +318,61 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
         final item = report.items[index];
         final isSelected = index == _touchedIndex;
 
-        return InkWell(
-          onTap: () => _handleSectionTap(index),
-          borderRadius: BorderRadius.circular(20),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? Color(item.category.color).withValues(alpha: 0.15)
-                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected
-                    ? Color(item.category.color)
-                    : Colors.transparent,
-                width: 1.5,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
+        return Semantics(
+          button: true,
+          selected: isSelected,
+          label: '${item.category.name}: ${item.percentage.toStringAsFixed(0)}% (${item.amount.toIdr()})',
+          child: InkWell(
+            onTap: () => _handleSectionTap(index),
+            borderRadius: BorderRadius.circular(20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Color(item.category.color),
-                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? Color(item.category.color).withValues(alpha: 0.15)
+                        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? Color(item.category.color)
+                          : Colors.transparent,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: Color(item.category.color),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        item.category.name,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${item.percentage.toStringAsFixed(0)}%',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  item.category.name,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${item.percentage.toStringAsFixed(0)}%',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         );

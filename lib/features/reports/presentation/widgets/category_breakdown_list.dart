@@ -159,16 +159,20 @@ class CategoryBreakdownList extends StatelessWidget {
     final catColor = Color(item.category.color);
     final iconData = DefaultCategories.getIconData(item.category.icon);
 
-    return InkWell(
-      onTap: () {
-        if (isSelected) {
-          onCategorySelected?.call(null);
-        } else {
-          onCategorySelected?.call(item);
-        }
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: '${item.category.name}: ${item.amount.toIdr()}, ${item.percentage.toStringAsFixed(1)}% of total, ${item.transactionCount} transactions',
+      child: InkWell(
+        onTap: () {
+          if (isSelected) {
+            onCategorySelected?.call(null);
+          } else {
+            onCategorySelected?.call(item);
+          }
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected
@@ -244,7 +248,7 @@ class CategoryBreakdownList extends StatelessWidget {
                       child: Text(
                         '${item.percentage.toStringAsFixed(1)}%',
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: catColor,
+                          color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.bold,
                           fontSize: 10,
                         ),
@@ -262,6 +266,8 @@ class CategoryBreakdownList extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: (item.percentage / 100).clamp(0.0, 1.0),
                 minHeight: 6,
+                semanticsLabel: '${item.category.name} share of spending',
+                semanticsValue: '${item.percentage.toStringAsFixed(1)}%',
                 backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 valueColor: AlwaysStoppedAnimation<Color>(catColor),
               ),
@@ -269,6 +275,8 @@ class CategoryBreakdownList extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }
+

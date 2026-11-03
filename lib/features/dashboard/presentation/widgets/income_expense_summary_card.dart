@@ -27,55 +27,64 @@ class IncomeExpenseSummaryCard extends StatelessWidget {
       children: [
         // Income Summary Card
         Expanded(
-          child: Card(
-            elevation: 0,
-            margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          child: Semantics(
+            container: true,
+            label: 'Total Pemasukan: ${summary.totalIncome.toIdr()}',
+            child: Card(
+              elevation: 0,
+              margin: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: incomeColor.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        ExcludeSemantics(
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: incomeColor.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.arrow_downward_rounded,
+                              size: 16,
+                              color: incomeColor,
+                            ),
+                          ),
                         ),
-                        child: Icon(
-                          Icons.arrow_downward_rounded,
-                          size: 16,
+                        const SizedBox(width: 8),
+                        Text(
+                          'Income',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        summary.totalIncome.toIdr(),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
                           color: incomeColor,
                         ),
+                        maxLines: 1,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Income',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    summary.totalIncome.toIdr(),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: incomeColor,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -84,55 +93,64 @@ class IncomeExpenseSummaryCard extends StatelessWidget {
 
         // Expense Summary Card
         Expanded(
-          child: Card(
-            elevation: 0,
-            margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          child: Semantics(
+            container: true,
+            label: 'Total Pengeluaran: ${summary.totalExpense.toIdr()}',
+            child: Card(
+              elevation: 0,
+              margin: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: expenseColor.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        ExcludeSemantics(
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: expenseColor.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.arrow_upward_rounded,
+                              size: 16,
+                              color: expenseColor,
+                            ),
+                          ),
                         ),
-                        child: Icon(
-                          Icons.arrow_upward_rounded,
-                          size: 16,
+                        const SizedBox(width: 8),
+                        Text(
+                          'Expense',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        summary.totalExpense.toIdr(),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
                           color: expenseColor,
                         ),
+                        maxLines: 1,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Expense',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    summary.totalExpense.toIdr(),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: expenseColor,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

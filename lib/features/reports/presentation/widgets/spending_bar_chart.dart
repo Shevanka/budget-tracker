@@ -95,12 +95,19 @@ class SpendingBarChart extends StatelessWidget {
             if (report.isEmpty)
               _buildEmptyState(theme, colorScheme)
             else
-              SizedBox(
-                height: 200,
-                child: BarChart(
-                  _buildChartData(theme, colorScheme, isWeekView),
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
+              Semantics(
+                container: true,
+                label: 'Spending over time chart. Average daily spending: ${report.averageDailyExpense.toCompactIdr()}. '
+                    '${report.highestSpendingDay != null ? "Peak spending on ${report.highestSpendingDay!.formattedDate}: ${report.highestSpendingDay!.amount.toIdr()}" : ""}',
+                child: SizedBox(
+                  height: 200,
+                  child: ExcludeSemantics(
+                    child: BarChart(
+                      _buildChartData(theme, colorScheme, isWeekView),
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    ),
+                  ),
                 ),
               ),
           ],

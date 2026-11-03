@@ -85,59 +85,65 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
                     // Quick Insights Summary Card
                     if (report.hasData)
-                      Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(
-                            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                      Semantics(
+                        container: true,
+                        label: 'Kategori pengeluaran terbesar: ${report.topCategory!.category.name}, ${report.topCategory!.percentage.toStringAsFixed(1)} persen, total ${report.topCategory!.amount.toIdr()}',
+                        child: Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(
+                              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                            ),
                           ),
-                        ),
-                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary.withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.insights_rounded,
-                                  color: colorScheme.primary,
-                                  size: 22,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Top Spending Category',
-                                      style: theme.textTheme.labelMedium?.copyWith(
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
+                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                ExcludeSemantics(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primary.withValues(alpha: 0.12),
+                                      shape: BoxShape.circle,
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${report.topCategory!.category.name} (${report.topCategory!.percentage.toStringAsFixed(1)}%)',
-                                      style: theme.textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    child: Icon(
+                                      Icons.insights_rounded,
+                                      color: colorScheme.primary,
+                                      size: 22,
                                     ),
-                                    Text(
-                                      report.topCategory!.amount.toIdr(),
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Top Spending Category',
+                                        style: theme.textTheme.labelMedium?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${report.topCategory!.category.name} (${report.topCategory!.percentage.toStringAsFixed(1)}%)',
+                                        style: theme.textTheme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        report.topCategory!.amount.toIdr(),
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -267,23 +273,32 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             if (!filter.isCurrent) ...[
               const SizedBox(width: 8),
-              InkWell(
-                onTap: notifier.resetToCurrentMonth,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'This Month',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.bold,
+              Semantics(
+                button: true,
+                label: 'Jump to current month',
+                child: InkWell(
+                  onTap: notifier.resetToCurrentMonth,
+                  borderRadius: BorderRadius.circular(12),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'This Month',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -326,23 +341,32 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             if (!filter.isCurrent) ...[
               const SizedBox(width: 8),
-              InkWell(
-                onTap: notifier.resetToCurrentWeek,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'This Week',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.bold,
+              Semantics(
+                button: true,
+                label: 'Jump to current week',
+                child: InkWell(
+                  onTap: notifier.resetToCurrentWeek,
+                  borderRadius: BorderRadius.circular(12),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'This Week',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

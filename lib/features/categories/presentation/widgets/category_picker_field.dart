@@ -189,6 +189,7 @@ class CategoryPickerField extends ConsumerWidget {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
+                          tooltip: 'Tutup',
                           onPressed: () => Navigator.pop(sheetContext),
                         ),
                       ],
