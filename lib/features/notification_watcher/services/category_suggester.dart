@@ -82,6 +82,11 @@ abstract final class CategorySuggester {
       'mixue',
       'lawson',
       'kartika sari',
+      'padang',
+      'sederhana',
+      'bakmi',
+      'marugame',
+      'yoshinoya',
     ],
 
     // 2. Transport & Mobility
@@ -148,6 +153,7 @@ abstract final class CategorySuggester {
       'alfamart',
       'alfamidi',
       'superindo',
+      'super indo',
       'hypermart',
       'carrefour',
       'transmart',
@@ -172,6 +178,7 @@ abstract final class CategorySuggester {
       'apotek',
       'kimia farma',
       'k24',
+      'k-24',
       'halodoc',
       'alodokter',
       'rs',

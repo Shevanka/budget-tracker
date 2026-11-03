@@ -59,13 +59,25 @@ class ReceiptParser {
     final headerCandidates = lines.take(8).toList();
 
     // 1. Look for known Indonesian merchant brand keywords first
+    // Prefer store name lines over corporate legal entity lines (PT. / CV.)
+    String? legalEntityCandidate;
     for (final line in headerCandidates) {
       final clean = line.trim();
       if (_isIgnorableHeader(clean)) continue;
 
+      final isLegalEntity = RegExp(r'^(?:PT\.?|CV\.?)\s+', caseSensitive: false).hasMatch(clean);
+
       if (_matchesKnownBrand(clean)) {
-        return _cleanMerchantName(clean);
+        if (!isLegalEntity) {
+          return _cleanMerchantName(clean);
+        } else {
+          legalEntityCandidate ??= _cleanMerchantName(clean);
+        }
       }
+    }
+
+    if (legalEntityCandidate != null) {
+      return legalEntityCandidate;
     }
 
     // 2. Fall back to the first non-ignorable uppercase or capitalized title line
@@ -96,7 +108,7 @@ class ReceiptParser {
     // Scan backwards from bottom to top as totals are typically in the footer
     for (var i = lines.length - 1; i >= 0; i--) {
       final line = lines[i].trim();
-      final upper = line.toUpperCase();
+      final upper = line.toUpperCase().replaceAll('T0TAL', 'TOTAL').replaceAll('TOT4L', 'TOTAL');
 
       // Skip item count, quantity lines, payment amounts (tunai/cash), and change (kembali)
       if (_isIgnorableAmountLine(upper)) continue;
@@ -150,9 +162,9 @@ class ReceiptParser {
       r'\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:\s+(\d{1,2})[:\.](\d{2})(?:[:\.](\d{2}))?)?',
     );
 
-    // Pattern 3: Textual month (e.g., 30-Okt-2026, 28 Oktober 2026, 15 Nov 26)
+    // Pattern 3: Textual month (e.g., 30-Okt-2026, 28 Oktober 2026, 15 Nov 26, 28 Oktober 2026, 14:35)
     final textMonthPattern = RegExp(
-      r'\b(\d{1,2})[\s\/\-]+([a-zA-Z]{3,9})[\s\/\-]+(\d{2,4})(?:\s+(\d{1,2})[:\.](\d{2}))?',
+      r'\b(\d{1,2})[\s\/\-]+([a-zA-Z]{3,9})[\s\/\-]+(\d{2,4})(?:[\s,]+(\d{1,2})[:\.](\d{2}))?',
       caseSensitive: false,
     );
 
@@ -245,6 +257,7 @@ class ReceiptParser {
       'alfamart',
       'alfamidi',
       'superindo',
+      'super indo',
       'hypermart',
       'carrefour',
       'transmart',
@@ -268,6 +281,24 @@ class ReceiptParser {
       'mixue',
       'lawson',
       'kartika sari',
+      'kimia farma',
+      'k-24',
+      'k24',
+      'apotek',
+      'ace hardware',
+      'mr diy',
+      'mr. diy',
+      'ikea',
+      'jco',
+      'chatime',
+      'dunkin',
+      'bakmi gm',
+      'sederhana',
+      'padang',
+      'sushi tei',
+      'marugame',
+      'yoshinoya',
+      'a&w',
     ];
 
     for (final brand in knownBrands) {
@@ -284,6 +315,9 @@ class ReceiptParser {
     cleaned = cleaned.replaceAll(RegExp(r'^CV\.?\s+', caseSensitive: false), '');
     cleaned = cleaned.replaceAll(RegExp(r',\s*TBK\.?$', caseSensitive: false), '');
 
+    // Strip leading/trailing decorative symbols (e.g., ***, ===, ---, ~~~)
+    cleaned = cleaned.replaceAll(RegExp(r'^[\*\=\-\.\~#\s]+|[\*\=\-\.\~#\s]+$'), '').trim();
+
     // Strip trailing symbols or store numbers if formatted as '#1234'
     cleaned = cleaned.replaceAll(RegExp(r'\s+#\d+.*$'), '');
     cleaned = cleaned.replaceAll(RegExp(r'[\.,;:*=\-_]+$'), '').trim();
@@ -292,21 +326,45 @@ class ReceiptParser {
   }
 
   bool _isIgnorableAmountLine(String upper) {
+    if (upper.contains('TOTAL BAYAR') ||
+        upper.contains('TOTAL BELANJA') ||
+        upper.contains('GRAND TOTAL') ||
+        upper.contains('TOTAL AKHIR') ||
+        upper.contains('TOTAL HARGA') ||
+        upper.contains('TOTAL TAGIHAN')) {
+      return false;
+    }
     return upper.contains('TOTAL ITEM') ||
         upper.contains('TOTAL QTY') ||
         upper.contains('TOTAL PCS') ||
-        upper.contains('TUNAI') ||
-        upper.contains('CASH') ||
-        upper.contains('KEMBALI') ||
-        upper.contains('KEMBALIAN') ||
-        upper.contains('CHANGE') ||
-        upper.contains('DISKON') ||
-        upper.contains('HEMAT') ||
-        upper.contains('POTONGAN');
+        upper.startsWith('TUNAI') ||
+        upper.startsWith('CASH') ||
+        upper.startsWith('KEMBALI') ||
+        upper.startsWith('KEMBALIAN') ||
+        upper.startsWith('CHANGE') ||
+        upper.startsWith('DISKON') ||
+        upper.startsWith('HEMAT') ||
+        upper.startsWith('POTONGAN');
   }
 
   int? _parseAmountFromLine(String line) {
-    // Look for Indonesian number formats e.g. '18.000', '125.500,00', 'Rp 45.000'
+    // 1. Try to find the amount directly following total/tagihan/jumlah keyword
+    final keywordPattern = RegExp(
+      r'(?:TOTAL|T0TAL|TOT4L|JUMLAH|TAGIHAN|SUBTOTAL|GRAND\s*TOTAL)(?:\s+(?:BAYAR|BELANJA|HARGA|AKHIR|TAGIHAN|NETTO))?\s*[:=]?\s*(?:Rp\.?|IDR)?\s*([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d+)',
+      caseSensitive: false,
+    );
+    final kwMatch = keywordPattern.firstMatch(line);
+    if (kwMatch != null) {
+      final rawNum = kwMatch.group(1);
+      if (rawNum != null) {
+        final amount = CurrencyFormatter.tryParse(rawNum);
+        if (amount != null && amount > 0) {
+          return amount;
+        }
+      }
+    }
+
+    // 2. Look for Indonesian number formats e.g. '18.000', '125.500,00', 'Rp 45.000'
     final matches = RegExp(r'(?:Rp\.?|IDR)?\s*([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d+)')
         .allMatches(line);
 
