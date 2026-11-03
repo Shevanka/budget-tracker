@@ -6,7 +6,6 @@ import 'package:budget_tracker/features/budget/providers/budget_provider.dart';
 import 'package:budget_tracker/features/categories/presentation/screens/category_manager_screen.dart';
 import 'package:budget_tracker/features/categories/providers/categories_provider.dart';
 import 'package:budget_tracker/features/dashboard/domain/models/financial_summary.dart';
-import 'package:budget_tracker/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:budget_tracker/features/dashboard/providers/dashboard_provider.dart';
 import 'package:budget_tracker/features/notification_watcher/providers/draft_transaction_provider.dart';
 import 'package:budget_tracker/features/reports/domain/models/category_spending.dart';
@@ -210,7 +209,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final BuildContext context =
-          tester.element(find.byType(DashboardScreen));
+          tester.element(find.text('Net Balance'));
       context.push(AppRoute.editTransaction.path.replaceAll(':id', 'tx-123'));
       await tester.pumpAndSettle();
 
@@ -223,12 +222,24 @@ void main() {
       await tester.pumpAndSettle();
 
       final BuildContext context =
-          tester.element(find.byType(DashboardScreen));
+          tester.element(find.text('Net Balance'));
       context.push(AppRoute.receiptPicker.path);
       await tester.pumpAndSettle();
 
       expect(find.text('Scan Receipt'), findsOneWidget);
       expect(find.text('Receipt Scanner'), findsOneWidget);
+    });
+
+    testWidgets('navigates to Receipt Review screen', (tester) async {
+      await tester.pumpWidget(createTestApp());
+      await tester.pumpAndSettle();
+
+      final BuildContext context =
+          tester.element(find.text('Net Balance'));
+      context.push(AppRoute.receiptReview.path);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tinjau Data Struk'), findsOneWidget);
     });
   });
 }

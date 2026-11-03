@@ -9,7 +9,8 @@ enum AppRoute {
   categoryManager('/categories'),
   budgetSetup('/budget/setup'),
   smartRecordingReview('/smart-recording/review'),
-  receiptPicker('/smart-recording/receipt-picker');
+  receiptPicker('/smart-recording/receipt-picker'),
+  receiptReview('/smart-recording/receipt-review');
 
   const AppRoute(this.path);
   final String path;

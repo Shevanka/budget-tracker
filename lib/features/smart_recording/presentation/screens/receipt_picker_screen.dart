@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../routing/app_routes.dart';
 import '../../models/receipt_scan_result.dart';
 import '../../providers/smart_recording_provider.dart';
 import '../../services/image_picker_wrapper.dart';
@@ -455,6 +457,18 @@ class ReceiptPickerScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
+                onPressed: () {
+                  if (parsed != null) {
+                    context.push(AppRoute.receiptReview.path, extra: parsed);
+                  } else {
+                    Navigator.of(context).pop(result);
+                  }
+                },
+                icon: const Icon(Icons.rate_review_outlined),
+                label: const Text('Tinjau & Konfirmasi Data'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
                 onPressed: () {
                   Navigator.of(context).pop(parsed ?? result);
                 },

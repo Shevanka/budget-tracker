@@ -8,7 +8,9 @@ import '../features/categories/presentation/screens/category_manager_screen.dart
 import '../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../features/reports/presentation/screens/reports_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
+import '../features/smart_recording/models/parsed_receipt.dart';
 import '../features/smart_recording/presentation/screens/receipt_picker_screen.dart';
+import '../features/smart_recording/presentation/screens/receipt_review_screen.dart';
 import '../features/smart_recording/presentation/screens/smart_recording_review_screen.dart';
 import '../features/transactions/presentation/screens/add_edit_transaction_screen.dart';
 import '../features/transactions/presentation/screens/transactions_screen.dart';
@@ -29,7 +31,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) => AppRoute.dashboard.path,
       ),
 
-      // Bottom Navigation Stateful Shell
+      // StatefulShellRoute for Bottom Navigation (Tabs 0..3)
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return ScaffoldWithNestedNavigation(
@@ -139,6 +141,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoute.receiptPicker.path,
         name: AppRoute.receiptPicker.name,
         builder: (context, state) => const ReceiptPickerScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: AppRoute.receiptReview.path,
+        name: AppRoute.receiptReview.name,
+        builder: (context, state) {
+          final receipt = state.extra is ParsedReceipt
+              ? state.extra as ParsedReceipt
+              : null;
+          return ReceiptReviewScreen(initialReceipt: receipt);
+        },
       ),
     ],
   );
