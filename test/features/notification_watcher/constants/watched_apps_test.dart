@@ -3,20 +3,29 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('WatchedApps Constants & Registry Tests', () {
-    test('contains all 9 required Indonesian banking and e-wallet applications', () {
-      expect(WatchedApps.allApps.length, 9);
+    test('contains all 18 Indonesian banking and e-wallet applications', () {
+      expect(WatchedApps.allApps.length, 18);
 
       final appIds = WatchedApps.allApps.map((a) => a.id).toSet();
       expect(appIds, containsAll([
         'bca',
         'mandiri',
         'bni',
+        'bri',
         'btn',
+        'jago',
         'seabank',
+        'bsi',
+        'cimb',
+        'jenius',
+        'permata',
+        'flip',
+        'yup',
         'shopeepay',
         'gopay',
         'ovo',
         'dana',
+        'linkaja',
       ]));
     });
 
@@ -26,7 +35,9 @@ void main() {
       expect(WatchedApps.isWatchedPackage('id.co.bankmandiri.livin'), isTrue);
       expect(WatchedApps.isWatchedPackage('id.co.bni.mobilebanking'), isTrue);
       expect(WatchedApps.isWatchedPackage('id.co.bni.wondr'), isTrue);
+      expect(WatchedApps.isWatchedPackage('id.co.bri.brimo'), isTrue);
       expect(WatchedApps.isWatchedPackage('id.co.btn.mobilebanking'), isTrue);
+      expect(WatchedApps.isWatchedPackage('com.jago.digitalBanking'), isTrue);
       expect(WatchedApps.isWatchedPackage('com.seabank.id'), isTrue);
     });
 
@@ -35,8 +46,10 @@ void main() {
       expect(WatchedApps.isWatchedPackage('com.shopeepay.id'), isTrue);
       expect(WatchedApps.isWatchedPackage('com.gojek.app'), isTrue);
       expect(WatchedApps.isWatchedPackage('id.co.gopay'), isTrue);
+      expect(WatchedApps.isWatchedPackage('com.gojek.gopay'), isTrue);
       expect(WatchedApps.isWatchedPackage('ovo.id'), isTrue);
       expect(WatchedApps.isWatchedPackage('id.dana'), isTrue);
+      expect(WatchedApps.isWatchedPackage('id.flip'), isTrue);
     });
 
     test('isWatchedPackage returns false for non-financial or null packages', () {
@@ -56,6 +69,10 @@ void main() {
       expect(gopay, isNotNull);
       expect(gopay!.name, contains('GoPay'));
       expect(gopay.type, InstitutionType.eWallet);
+
+      final bri = WatchedApps.findByPackage('id.co.bri.brimo');
+      expect(bri, isNotNull);
+      expect(bri!.name, contains('BRI'));
 
       expect(WatchedApps.findByPackage('com.unrelated.app'), isNull);
       expect(WatchedApps.findByPackage(null), isNull);

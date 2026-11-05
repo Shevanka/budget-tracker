@@ -4,6 +4,7 @@ import 'package:notification_listener_service/notification_event.dart';
 import '../../../core/utils/id_generator.dart';
 import '../../../database/app_database.dart';
 import '../../../database/daos/notification_log_dao.dart';
+import '../constants/watched_apps.dart';
 
 /// Service responsible for recording, querying, and managing raw incoming notifications
 /// in the [NotificationLogs] database table.
@@ -42,6 +43,18 @@ class NotificationLogService {
       return null;
     }
 
+    if (watchedPackages == null) {
+      final isWatched = WatchedApps.isWatchedPackage(packageName);
+      final isFinancialText = RegExp(
+        r'(?:rp\.?\s*[\d.,]+|idr\s*[\d.,]+|qris|transfer|pembayaran|berhasil bayar|debit rek|top up)',
+        caseSensitive: false,
+      ).hasMatch('$title $body');
+
+      if (!isWatched && !isFinancialText) {
+        return null;
+      }
+    }
+
     final receivedAt = event.timestamp > 0
         ? DateTime.fromMillisecondsSinceEpoch(event.timestamp, isUtc: true)
         : DateTime.now().toUtc();
@@ -51,6 +64,7 @@ class NotificationLogService {
       title: title.isNotEmpty ? title : null,
       body: body.isNotEmpty ? body : null,
       receivedAt: receivedAt,
+      watchedPackages: watchedPackages,
     );
   }
 
@@ -76,6 +90,18 @@ class NotificationLogService {
     if ((cleanTitle == null || cleanTitle.isEmpty) &&
         (cleanBody == null || cleanBody.isEmpty)) {
       return null;
+    }
+
+    if (watchedPackages == null) {
+      final isWatched = WatchedApps.isWatchedPackage(cleanPackage);
+      final isFinancialText = RegExp(
+        r'(?:rp\.?\s*[\d.,]+|idr\s*[\d.,]+|qris|transfer|pembayaran|berhasil bayar|debit rek|top up)',
+        caseSensitive: false,
+      ).hasMatch('${cleanTitle ?? ''} ${cleanBody ?? ''}');
+
+      if (!isWatched && !isFinancialText) {
+        return null;
+      }
     }
 
     final id = IdGenerator.generate();

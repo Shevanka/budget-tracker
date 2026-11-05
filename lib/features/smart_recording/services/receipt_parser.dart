@@ -1,5 +1,6 @@
 import '../../../core/utils/currency_formatter.dart';
 import '../../notification_watcher/services/category_suggester.dart';
+import '../constants/receipt_dataset.dart';
 import '../models/parsed_receipt.dart';
 import '../models/receipt_item.dart';
 import '../models/receipt_scan_result.dart';
@@ -59,27 +60,29 @@ class ReceiptParser {
   }
 
   /// Extracts the merchant or store name from the top header lines of the receipt.
-  /// Rejects address lines, tax IDs, cashier details, and non-store noise.
+  /// Prioritizes known brands and corporate legal entities from [ReceiptDataset],
+  /// while rejecting address lines, tax IDs, cashier details, and non-store noise.
   String? extractMerchant(List<String> lines) {
     if (lines.isEmpty) return null;
 
     final headerCandidates = lines.take(8).toList();
 
-    // 1. Look for known Indonesian merchant brand keywords first
+    // 1. Look for known Indonesian merchant brand keywords or legal entities from ReceiptDataset
     String? legalEntityCandidate;
     for (final line in headerCandidates) {
       final clean = line.trim();
 
-      final isLegalEntity = RegExp(
-        r'^(?:PT\.?|CV\.?|UD\.?)\s+',
-        caseSensitive: false,
-      ).hasMatch(clean);
+      final resolved = ReceiptDataset.resolveMerchant(clean);
+      if (resolved != null) {
+        final isLegalEntity = RegExp(
+          r'^(?:PT\.?|CV\.?|UD\.?)\s+',
+          caseSensitive: false,
+        ).hasMatch(clean);
 
-      if (_matchesKnownBrand(clean)) {
         if (!isLegalEntity) {
           return _cleanMerchantName(clean);
         } else {
-          legalEntityCandidate ??= _cleanMerchantName(clean);
+          legalEntityCandidate ??= resolved;
         }
       }
     }
@@ -124,17 +127,14 @@ class ReceiptParser {
       // Skip item count, quantity lines, payment amounts (tunai/cash), change (kembali), and barcodes
       if (_isIgnorableAmountLine(upper) || _isBarcodeLine(upper)) continue;
 
-      // 1. High priority: Lines containing explicit total keywords
-      if (upper.contains('GRAND TOTAL') ||
-          upper.contains('TOTAL BELANJA') ||
-          upper.contains('TOTAL HARGA') ||
-          upper.contains('TOTAL BAYAR') ||
-          upper.contains('TOTAL AKHIR') ||
-          upper.contains('TOTAL TAGIHAN')) {
-        final amount = _parseAmountFromLine(line) ??
-            (i + 1 < lines.length ? _parseAmountFromLine(lines[i + 1]) : null);
-        if (amount != null && amount > 0) {
-          return amount;
+      // 1. High priority: Lines containing explicit grand total keywords from ReceiptDataset
+      for (final kw in ReceiptDataset.grandTotalKeywords) {
+        if (upper.contains(kw)) {
+          final amount = _parseAmountFromLine(line) ??
+              (i + 1 < lines.length ? _parseAmountFromLine(lines[i + 1]) : null);
+          if (amount != null && amount > 0) {
+            return amount;
+          }
         }
       }
 
@@ -143,17 +143,19 @@ class ReceiptParser {
           upper.contains('JUMLAH') ||
           upper.contains('TAGIHAN')) {
         final amount = _parseAmountFromLine(line) ??
-            (i + 1 < lines.length ? _parseAmountFromLine(lines[i + 1]) : null);
+              (i + 1 < lines.length ? _parseAmountFromLine(lines[i + 1]) : null);
         if (amount != null && amount > 0 && candidateTotal == null) {
           candidateTotal = amount;
         }
       }
 
-      // 3. Low priority fallback: 'SUBTOTAL' or 'SUB TOTAL'
-      if (upper.contains('SUBTOTAL') || upper.contains('SUB TOTAL')) {
-        final amount = _parseAmountFromLine(line);
-        if (amount != null && amount > 0 && subtotal == null) {
-          subtotal = amount;
+      // 3. Low priority fallback: Subtotal keywords
+      for (final kw in ReceiptDataset.subtotalKeywords) {
+        if (upper.contains(kw)) {
+          final amount = _parseAmountFromLine(line);
+          if (amount != null && amount > 0 && subtotal == null) {
+            subtotal = amount;
+          }
         }
       }
     }
@@ -199,6 +201,65 @@ class ReceiptParser {
       endIdx = lines.length;
     }
 
+    final merchantName = extractMerchant(lines)?.toUpperCase();
+
+    // Heuristic Check: Contiguous block of N names followed by contiguous block of N prices
+    // This occurs when OCR scans the left text column as one block and the right price column as another block.
+    final candidateItemLines = <String>[];
+    for (var i = startIdx; i < endIdx; i++) {
+      final l = lines[i].trim();
+      final upper = l.toUpperCase();
+      if (upper == merchantName || (i <= 1 && ReceiptDataset.resolveMerchant(l) != null)) {
+        continue;
+      }
+      if (!isNoiseLine(l) && !isSummaryLine(l)) {
+        candidateItemLines.add(l);
+      }
+    }
+
+    if (candidateItemLines.length >= 4) {
+      final textLines = <String>[];
+      final priceLines = <int>[];
+      var transitioning = false;
+      var isTwoColumnBlock = true;
+
+      for (final l in candidateItemLines) {
+        final priceMatch = RegExp(
+          r'^(?:Rp\.?\s*)?([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d{3,})$',
+        ).firstMatch(l);
+
+        if (priceMatch != null) {
+          transitioning = true;
+          final val = CurrencyFormatter.tryParse(priceMatch.group(1)!);
+          if (val != null && val > 0 && val < 100000000) {
+            priceLines.add(val);
+          } else {
+            isTwoColumnBlock = false;
+            break;
+          }
+        } else if (_hasAlphabeticWords(l)) {
+          if (transitioning) {
+            isTwoColumnBlock = false;
+            break;
+          }
+          textLines.add(_cleanItemName(l));
+        } else {
+          isTwoColumnBlock = false;
+          break;
+        }
+      }
+
+      if (isTwoColumnBlock && textLines.length >= 2 && textLines.length == priceLines.length) {
+        for (var k = 0; k < textLines.length; k++) {
+          items.add(ReceiptItem(
+            name: textLines[k],
+            totalPrice: priceLines[k],
+          ));
+        }
+        return items;
+      }
+    }
+
     for (var i = startIdx; i < endIdx; i++) {
       final line = lines[i].trim();
       if (isNoiseLine(line) || isSummaryLine(line)) continue;
@@ -236,7 +297,7 @@ class ReceiptParser {
       // Item Pattern 2: Single line item with name and price at end
       // e.g. "CHITATO SAPI PANGGANG  11.500" or "1 KOPI KENANGAN 24.000" or "2 X ROTI 30.000"
       final itemMatch = RegExp(
-        r'^(?:(\d+)(?:\s*[xX@\.]|\s+)\s*)?(.+?)\s+([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d{3,})\s*$',
+        r'^(?:(\d+)(?:\s*[xX@]\s*|\s+))?(.+?)\s+([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d{3,})\s*$',
       ).firstMatch(line);
 
       if (itemMatch != null) {
@@ -256,8 +317,76 @@ class ReceiptParser {
                 quantity: qty,
                 totalPrice: totalPrice,
               ));
+              continue;
             }
           }
+        }
+      }
+
+      // Item Pattern 3: Two-line separation (Name on line i, Price / Qty on line i+1)
+      // Line i:   "CHITATO SAPI PANGGANG"
+      // Line i+1: "11.500"  or  "1x 11.500"  or  "1  11.500"
+      if (i + 1 < endIdx) {
+        final nextLine = lines[i + 1].trim();
+        final standalonePriceMatch = RegExp(
+          r'^(?:(\d+)\s*[xX@]\s*)?(?:Rp\.?\s*)?([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d{3,})$',
+        ).firstMatch(nextLine);
+
+        if (standalonePriceMatch != null &&
+            !isNoiseLine(line) &&
+            !isSummaryLine(line) &&
+            _hasAlphabeticWords(line)) {
+          final totalPrice = CurrencyFormatter.tryParse(standalonePriceMatch.group(2)!);
+          if (totalPrice != null && totalPrice > 0 && totalPrice < 100000000) {
+            final cleanName = _cleanItemName(line);
+            if (cleanName.isNotEmpty && _hasAlphabeticWords(cleanName)) {
+              final rawQty = standalonePriceMatch.group(1);
+              final qty = rawQty != null ? int.tryParse(rawQty) : null;
+              items.add(ReceiptItem(
+                name: cleanName,
+                quantity: qty,
+                totalPrice: totalPrice,
+              ));
+              i++; // Skip the next line as it was consumed
+              continue;
+            }
+          }
+        }
+      }
+    }
+
+    // Heuristic Fallback: Two-column layout pairing
+    if (items.isEmpty && endIdx - startIdx >= 2) {
+      final textLines = <String>[];
+      final priceLines = <int>[];
+
+      for (var i = startIdx; i < endIdx; i++) {
+        final l = lines[i].trim();
+        if (isNoiseLine(l) || isSummaryLine(l)) continue;
+
+        final priceOnly = RegExp(
+          r'^(?:Rp\.?\s*)?([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d{3,})$',
+        ).firstMatch(l);
+
+        if (priceOnly != null) {
+          final val = CurrencyFormatter.tryParse(priceOnly.group(1)!);
+          if (val != null && val > 0 && val < 100000000) {
+            priceLines.add(val);
+            continue;
+          }
+        }
+
+        if (_hasAlphabeticWords(l)) {
+          textLines.add(_cleanItemName(l));
+        }
+      }
+
+      if (textLines.isNotEmpty && textLines.length == priceLines.length) {
+        for (var k = 0; k < textLines.length; k++) {
+          items.add(ReceiptItem(
+            name: textLines[k],
+            totalPrice: priceLines[k],
+          ));
         }
       }
     }
@@ -412,6 +541,11 @@ class ReceiptParser {
     // 8. Payment noise (Tunai, Kembali, Card Details, Auth code)
     if (_isPaymentNoiseLine(upper)) return true;
 
+    // 9. Check against ReceiptDataset noise taxonomy
+    for (final noise in ReceiptDataset.noiseKeywords) {
+      if (upper.contains(noise)) return true;
+    }
+
     return false;
   }
 
@@ -419,30 +553,21 @@ class ReceiptParser {
   /// (Subtotal, Total, Discount, Tax, Service charge, Rounding).
   bool isSummaryLine(String line) {
     final upper = line.trim().toUpperCase();
-    return upper.contains('GRAND TOTAL') ||
-        upper.contains('TOTAL BELANJA') ||
-        upper.contains('TOTAL HARGA') ||
-        upper.contains('TOTAL BAYAR') ||
-        upper.contains('TOTAL AKHIR') ||
-        upper.contains('TOTAL TAGIHAN') ||
-        upper.contains('SUBTOTAL') ||
-        upper.contains('SUB TOTAL') ||
-        upper.contains('JUMLAH') ||
-        upper.contains('TAGIHAN') ||
-        upper.contains('TOTAL') ||
-        upper.contains('DISKON') ||
-        upper.contains('HEMAT') ||
-        upper.contains('POTONGAN') ||
-        upper.contains('PROMO') ||
-        upper.contains('PPN') ||
-        upper.contains('PAJAK') ||
-        upper.contains('TAX') ||
-        upper.contains('PB1') ||
-        upper.contains('SERVICE CHARGE') ||
-        upper.contains('PEMBULATAN') ||
-        upper.contains('ROUNDING') ||
-        upper.contains('ONGKIR') ||
-        upper.contains('DELIVERY FEE');
+
+    for (final kw in ReceiptDataset.grandTotalKeywords) {
+      if (upper.contains(kw)) return true;
+    }
+    for (final kw in ReceiptDataset.subtotalKeywords) {
+      if (upper.contains(kw)) return true;
+    }
+    for (final kw in ReceiptDataset.discountKeywords) {
+      if (upper.contains(kw)) return true;
+    }
+    for (final kw in ReceiptDataset.taxAndFeeKeywords) {
+      if (upper.contains(kw)) return true;
+    }
+
+    return false;
   }
 
   static bool _isSeparator(String line) {
@@ -604,32 +729,13 @@ class ReceiptParser {
   }
 
   static bool _isPaymentNoiseLine(String upper) {
-    return upper.startsWith('TUNAI') ||
-        upper.startsWith('CASH') ||
-        upper.startsWith('KEMBALI') ||
-        upper.startsWith('KEMBALIAN') ||
-        upper.startsWith('CHANGE') ||
-        upper.contains('DEBIT BCA') ||
-        upper.contains('DEBIT MANDIRI') ||
-        upper.contains('DEBIT BRI') ||
-        upper.contains('DEBIT BNI') ||
-        upper.contains('KARTU DEBIT') ||
-        upper.contains('KARTU KREDIT') ||
-        upper.contains('CREDIT CARD') ||
-        upper.contains('CARD NO') ||
-        upper.contains('CARD#') ||
-        upper.contains('PAN:') ||
-        upper.contains('EXP DATE') ||
-        upper.contains('AUTH CODE') ||
-        upper.contains('AUTH#') ||
-        upper.contains('APPR CODE') ||
-        upper.contains('MID:') ||
-        upper.contains('TID:') ||
-        upper.contains('BATCH NO') ||
-        upper.contains('BATCH#') ||
-        upper.contains('REF NO') ||
-        upper.contains('TRACE NO') ||
-        upper.contains('TOTAL ITEM') ||
+    for (final tender in ReceiptDataset.paymentTenderKeywords) {
+      if (upper.startsWith(tender) || upper.contains(' $tender')) return true;
+    }
+    for (final method in ReceiptDataset.paymentMethodKeywords) {
+      if (upper.contains(method)) return true;
+    }
+    return upper.contains('TOTAL ITEM') ||
         upper.contains('TOTAL QTY') ||
         upper.contains('TOTAL PCS') ||
         upper.contains('ITEM DIJUAL') ||
@@ -639,63 +745,6 @@ class ReceiptParser {
   // ---------------------------------------------------------------------------
   // Helper Methods
   // ---------------------------------------------------------------------------
-
-  bool _matchesKnownBrand(String line) {
-    final lower = line.toLowerCase();
-    const knownBrands = [
-      'indomaret',
-      'alfamart',
-      'alfamidi',
-      'superindo',
-      'super indo',
-      'hypermart',
-      'carrefour',
-      'transmart',
-      'watsons',
-      'guardian',
-      'kopi kenangan',
-      'janji jiwa',
-      'starbucks',
-      'point coffee',
-      'fore coffee',
-      'tuku',
-      'mcdonald',
-      'kfc',
-      'hokben',
-      'solaria',
-      'burger king',
-      'pizza hut',
-      'pertamina',
-      'shell',
-      'gramedia',
-      'mixue',
-      'lawson',
-      'kartika sari',
-      'kimia farma',
-      'k-24',
-      'k24',
-      'apotek',
-      'ace hardware',
-      'mr diy',
-      'mr. diy',
-      'ikea',
-      'jco',
-      'chatime',
-      'dunkin',
-      'bakmi gm',
-      'sederhana',
-      'padang',
-      'sushi tei',
-      'marugame',
-      'yoshinoya',
-      'a&w',
-    ];
-
-    for (final brand in knownBrands) {
-      if (lower.contains(brand)) return true;
-    }
-    return false;
-  }
 
   String _cleanMerchantName(String raw) {
     var cleaned = raw.trim();

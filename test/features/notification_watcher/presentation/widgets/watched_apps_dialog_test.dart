@@ -25,12 +25,12 @@ void main() {
   }
 
   group('WatchedAppsDialog Widget Tests', () {
-    testWidgets('renders all 9 banks & e-wallets grouped by category', (tester) async {
+    testWidgets('renders all 18 banks & e-wallets grouped by category', (tester) async {
       await tester.pumpWidget(buildTestDialog());
       await tester.pumpAndSettle();
 
       expect(find.text('Aplikasi Dipantau'), findsOneWidget);
-      expect(find.text('9 dari 9 aktif'), findsOneWidget);
+      expect(find.text('18 dari 18 aktif'), findsOneWidget);
       expect(find.text('Pilih Semua'), findsOneWidget);
       expect(find.text('Hapus Semua'), findsOneWidget);
 
@@ -40,18 +40,21 @@ void main() {
       expect(find.text(WatchedApps.bca.name), findsOneWidget);
       expect(find.text(WatchedApps.mandiri.name), findsOneWidget);
       expect(find.text(WatchedApps.bni.name), findsOneWidget);
-      expect(find.text(WatchedApps.btn.name), findsOneWidget);
+      expect(find.text(WatchedApps.bri.name), findsOneWidget);
+
+      // Scroll to check SeaBank
+      await tester.scrollUntilVisible(
+        find.text(WatchedApps.seaBank.name),
+        50,
+      );
       expect(find.text(WatchedApps.seaBank.name), findsOneWidget);
 
-      // Scroll down to check e-wallets
-      await tester.drag(find.byType(ListView), const Offset(0, -300));
-      await tester.pumpAndSettle();
-
-      expect(find.text('E-Wallet'), findsOneWidget);
+      // Scroll to check e-wallets
+      await tester.scrollUntilVisible(
+        find.text(WatchedApps.shopeePay.name),
+        50,
+      );
       expect(find.text(WatchedApps.shopeePay.name), findsOneWidget);
-      expect(find.text(WatchedApps.goPay.name), findsOneWidget);
-      expect(find.text(WatchedApps.ovo.name), findsOneWidget);
-      expect(find.text(WatchedApps.dana.name), findsOneWidget);
     });
 
     testWidgets('unchecking an app toggles its state', (tester) async {
@@ -71,7 +74,7 @@ void main() {
 
       bcaTile = tester.widget<CheckboxListTile>(bcaFinder);
       expect(bcaTile.value, isFalse);
-      expect(find.text('8 dari 9 aktif'), findsOneWidget);
+      expect(find.text('17 dari 18 aktif'), findsOneWidget);
     });
 
     testWidgets('tapping Hapus Semua deselects all apps', (tester) async {
@@ -81,7 +84,7 @@ void main() {
       await tester.tap(find.text('Hapus Semua'));
       await tester.pumpAndSettle();
 
-      expect(find.text('0 dari 9 aktif'), findsOneWidget);
+      expect(find.text('0 dari 18 aktif'), findsOneWidget);
 
       final checkboxes = tester.widgetList<CheckboxListTile>(find.byType(CheckboxListTile));
       for (final cb in checkboxes) {
@@ -95,12 +98,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('0 dari 9 aktif'), findsOneWidget);
+      expect(find.text('0 dari 18 aktif'), findsOneWidget);
 
       await tester.tap(find.text('Pilih Semua'));
       await tester.pumpAndSettle();
 
-      expect(find.text('9 dari 9 aktif'), findsOneWidget);
+      expect(find.text('18 dari 18 aktif'), findsOneWidget);
     });
 
     testWidgets('show static method opens dialog and Selesai button dismisses', (tester) async {

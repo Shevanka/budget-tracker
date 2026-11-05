@@ -319,10 +319,10 @@ void main() {
 
       expect(find.text('Watched Applications'), findsOneWidget);
       expect(
-        find.text('All 9 banks & e-wallets active (BCA, Mandiri, GoPay, etc.)'),
+        find.text('All 18 banks & e-wallets active (BCA, Mandiri, GoPay, etc.)'),
         findsOneWidget,
       );
-      expect(find.text('9'), findsOneWidget);
+      expect(find.text('18'), findsOneWidget);
 
       // Tap Watched Applications
       await tester.tap(find.text('Watched Applications'));
@@ -347,7 +347,7 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, -400));
       await tester.pumpAndSettle();
 
-      expect(find.text('2 of 9 institutions active'), findsOneWidget);
+      expect(find.text('2 of 18 institutions active'), findsOneWidget);
       expect(find.text('2'), findsOneWidget);
     });
   });

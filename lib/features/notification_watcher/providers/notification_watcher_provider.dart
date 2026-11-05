@@ -228,6 +228,25 @@ final processedIncomingNotificationProvider =
 
   final watcher = ref.watch(notificationWatcherServiceProvider);
   final watchedPackages = ref.watch(watchedPackagesProvider);
+  final wrapper = ref.watch(notificationListenerWrapperProvider);
+
+  // Perform an eager scan of any active notifications sitting in the status bar
+  Future.microtask(() async {
+    final isEnabled = ref.read(notificationWatcherEnabledProvider);
+    if (!isEnabled) return;
+    try {
+      final activeList = await wrapper.getActiveNotifications();
+      for (final event in activeList) {
+        final payload = await watcher.processEvent(
+          event,
+          watchedPackages: watchedPackages,
+        );
+        if (payload != null && !controller.isClosed) {
+          controller.add(payload);
+        }
+      }
+    } catch (_) {}
+  });
 
   ref.listen<AsyncValue<ServiceNotificationEvent>>(
     rawIncomingNotificationsStreamProvider,
@@ -246,4 +265,35 @@ final processedIncomingNotificationProvider =
   );
 
   return controller.stream;
+});
+
+/// Checks active notifications currently sitting in the Android notification drawer,
+/// logs and parses any financial transactions, and returns them.
+final syncActiveNotificationsProvider =
+    FutureProvider.autoDispose<List<IncomingNotificationPayload>>((ref) async {
+  final isEnabled = ref.watch(notificationWatcherEnabledProvider);
+  if (!isEnabled) return const [];
+
+  final isGrantedAsync = ref.watch(notificationAccessPermissionProvider);
+  final isGranted = isGrantedAsync.valueOrNull ?? false;
+  if (!isGranted) return const [];
+
+  final wrapper = ref.watch(notificationListenerWrapperProvider);
+  final watcher = ref.watch(notificationWatcherServiceProvider);
+  final watchedPackages = ref.watch(watchedPackagesProvider);
+
+  final activeList = await wrapper.getActiveNotifications();
+  final results = <IncomingNotificationPayload>[];
+
+  for (final event in activeList) {
+    final payload = await watcher.processEvent(
+      event,
+      watchedPackages: watchedPackages,
+    );
+    if (payload != null && payload.isTransaction) {
+      results.add(payload);
+    }
+  }
+
+  return results;
 });

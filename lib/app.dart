@@ -9,33 +9,89 @@ import 'features/notification_watcher/services/notification_watcher_service.dart
 import 'routing/app_router.dart';
 
 /// Root application widget configuring MaterialApp.router, AppTheme,
-/// and maintaining active root listeners (such as the bank/e-wallet notification watcher).
-class BudgetTrackerApp extends ConsumerWidget {
+/// and maintaining active root listeners and lifecycle observers for
+/// the bank/e-wallet notification watcher.
+class BudgetTrackerApp extends ConsumerStatefulWidget {
   const BudgetTrackerApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Eagerly maintain an active listener for incoming financial notifications.
-    // When a transaction is automatically captured, a local notification banner is triggered.
+  ConsumerState<BudgetTrackerApp> createState() => _BudgetTrackerAppState();
+}
+
+class _BudgetTrackerAppState extends ConsumerState<BudgetTrackerApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Initial sync of active notifications sitting in the drawer
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncDrawerNotifications();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(notificationAccessPermissionProvider.notifier).refresh();
+      _syncDrawerNotifications();
+    }
+  }
+
+  Future<void> _syncDrawerNotifications() async {
+    final isEnabled = ref.read(notificationWatcherEnabledProvider);
+    if (!isEnabled) return;
+
+    try {
+      final wrapper = ref.read(notificationListenerWrapperProvider);
+      final watcher = ref.read(notificationWatcherServiceProvider);
+      final watchedPackages = ref.read(watchedPackagesProvider);
+
+      final activeEvents = await wrapper.getActiveNotifications();
+      for (final event in activeEvents) {
+        final payload = await watcher.processEvent(
+          event,
+          watchedPackages: watchedPackages,
+        );
+        if (payload != null && payload.isTransaction) {
+          _triggerAlertNotification(payload);
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _triggerAlertNotification(IncomingNotificationPayload payload) {
+    final parsed = payload.parsed;
+    if (parsed == null) return;
+
+    final notificationService = ref.read(notificationServiceProvider);
+    final formatted = CurrencyFormatter.format(
+      parsed.amount,
+      includeSymbol: true,
+    );
+    notificationService.showReminder(
+      id: payload.log.id.hashCode,
+      title: 'Transaksi Terdeteksi: ${parsed.source}',
+      body: '$formatted di ${parsed.merchant}. Ketuk untuk meninjau.',
+      payload: '/smart-recording/review',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Eagerly maintain an active listener for incoming financial notifications in real time.
     ref.listen<AsyncValue<IncomingNotificationPayload>>(
       processedIncomingNotificationProvider,
       (previous, next) {
         final payload = next.valueOrNull;
         if (payload != null && payload.isTransaction) {
-          final parsed = payload.parsed;
-          if (parsed != null) {
-            final notificationService = ref.read(notificationServiceProvider);
-            final formatted = CurrencyFormatter.format(
-              parsed.amount,
-              includeSymbol: true,
-            );
-            notificationService.showReminder(
-              id: payload.log.id.hashCode,
-              title: 'Transaksi Terdeteksi: ${parsed.source}',
-              body: '$formatted di ${parsed.merchant}. Ketuk untuk meninjau.',
-              payload: '/smart-recording/review',
-            );
-          }
+          _triggerAlertNotification(payload);
         }
       },
     );
