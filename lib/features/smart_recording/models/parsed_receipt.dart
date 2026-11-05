@@ -4,6 +4,7 @@ import '../../../core/constants/default_categories.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../database/app_database.dart';
 import '../../../database/converters/transaction_type.dart';
+import 'receipt_item.dart';
 
 /// Structured financial transaction data extracted from OCR text of a receipt.
 class ParsedReceipt {
@@ -31,6 +32,12 @@ class ParsedReceipt {
   /// The individual non-empty lines from the receipt.
   final List<String> lines;
 
+  /// Individual itemized products/services detected on the receipt.
+  final List<ReceiptItem> items;
+
+  /// Cleaned transaction lines with noise (NPWP, store addresses, cashiers, greetings) filtered out.
+  final List<String> cleanLines;
+
   const ParsedReceipt({
     this.merchant,
     this.amount,
@@ -40,6 +47,8 @@ class ParsedReceipt {
     required this.rawText,
     required this.imagePath,
     this.lines = const [],
+    this.items = const [],
+    this.cleanLines = const [],
   });
 
   /// Formatted amount string in Indonesian Rupiah (e.g. 'Rp 45.000') or '-' if not found.
@@ -47,7 +56,17 @@ class ParsedReceipt {
       amount != null ? CurrencyFormatter.format(amount!) : '-';
 
   /// Whether the receipt parser successfully found both a valid positive amount and a merchant name.
-  bool get isRecognized => (amount != null && amount! > 0) && (merchant != null && merchant!.trim().isNotEmpty);
+  bool get isRecognized =>
+      (amount != null && amount! > 0) &&
+      (merchant != null && merchant!.trim().isNotEmpty);
+
+  /// Compact summary of detected items (e.g. '3 items: Chitato, Ultra Milk, Tango Wafer').
+  String get itemsSummary {
+    if (items.isEmpty) return '';
+    final names = items.map((i) => i.name).take(3).join(', ');
+    final remaining = items.length > 3 ? ' +${items.length - 3} lainnya' : '';
+    return '${items.length} item: $names$remaining';
+  }
 
   /// Converts this [ParsedReceipt] into a [TransactionsCompanion] ready for database insertion.
   TransactionsCompanion toTransactionCompanion({
@@ -83,6 +102,8 @@ class ParsedReceipt {
     String? rawText,
     String? imagePath,
     List<String>? lines,
+    List<ReceiptItem>? items,
+    List<String>? cleanLines,
   }) {
     return ParsedReceipt(
       merchant: merchant ?? this.merchant,
@@ -94,6 +115,8 @@ class ParsedReceipt {
       rawText: rawText ?? this.rawText,
       imagePath: imagePath ?? this.imagePath,
       lines: lines ?? this.lines,
+      items: items ?? this.items,
+      cleanLines: cleanLines ?? this.cleanLines,
     );
   }
 
@@ -121,5 +144,5 @@ class ParsedReceipt {
 
   @override
   String toString() =>
-      'ParsedReceipt(merchant: $merchant, amount: $amount, date: $date, category: $suggestedCategoryName)';
+      'ParsedReceipt(merchant: $merchant, amount: $amount, date: $date, items: ${items.length}, category: $suggestedCategoryName)';
 }

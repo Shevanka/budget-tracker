@@ -9,7 +9,7 @@ import '../../providers/smart_recording_provider.dart';
 import '../../services/image_picker_wrapper.dart';
 
 /// Screen allowing the user to capture a receipt via camera or pick from gallery,
-/// triggering on-device ML Kit OCR text recognition.
+/// triggering on-device ML Kit OCR text recognition and displaying cleaned transaction details.
 class ReceiptPickerScreen extends ConsumerWidget {
   const ReceiptPickerScreen({super.key});
 
@@ -171,7 +171,7 @@ class ReceiptPickerScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Capture a photo or pick an image from gallery to extract transaction details.',
+                  'Capture a photo or pick an image from gallery to extract clean transaction details.',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -373,10 +373,13 @@ class ReceiptPickerScreen extends ConsumerWidget {
                               color: colorScheme.onSurfaceVariant,
                             ),
                           ),
-                          Text(
-                            parsed.merchant ?? '-',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                          Flexible(
+                            child: Text(
+                              parsed.merchant ?? '-',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.end,
                             ),
                           ),
                         ],
@@ -434,17 +437,85 @@ class ReceiptPickerScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+
+                // Itemized products list if recognized
+                if (parsed.items.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 16,
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Item Belanja Terdeteksi (${parsed.items.length}):',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ...parsed.items.map((item) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2.5),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    item.quantity != null
+                                        ? '${item.quantity}x ${item.name}'
+                                        : item.name,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  item.formattedTotalPrice,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ],
+
               Text(
-                'Pratinjau Hasil OCR:',
+                'Pratinjau Hasil OCR (${lines.length} baris):',
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 8),
               Container(
-                constraints: const BoxConstraints(maxHeight: 180),
+                constraints: const BoxConstraints(maxHeight: 160),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),

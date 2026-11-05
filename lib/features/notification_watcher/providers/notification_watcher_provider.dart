@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:notification_listener_service/notification_event.dart';
 
+import '../../../core/services/preferences_service.dart';
 import '../../../database/app_database.dart';
 import '../../../database/database_provider.dart';
 import '../constants/watched_apps.dart';
@@ -10,6 +11,12 @@ import '../services/notification_listener_wrapper.dart';
 import '../services/notification_log_service.dart';
 import '../services/notification_parser.dart';
 import '../services/notification_watcher_service.dart';
+
+/// Preference key for the notification watcher master switch.
+const notificationWatcherEnabledPrefKey = 'notification_watcher_enabled';
+
+/// Preference key for enabled watched institutions.
+const enabledWatchedAppIdsPrefKey = 'enabled_watched_app_ids';
 
 /// Provides the [NotificationParser] instance for parsing Indonesian bank and e-wallet notifications.
 final notificationParserProvider = Provider<NotificationParser>((ref) {
@@ -22,46 +29,85 @@ final notificationListenerWrapperProvider =
   return const DefaultNotificationListenerWrapper();
 });
 
-/// Controls whether the notification watcher is globally enabled by the user in Settings.
-final notificationWatcherEnabledProvider = StateProvider<bool>((ref) => false);
+/// State notifier managing whether the notification watcher is globally enabled.
+/// Backed by [preferencesServiceProvider] so the setting persists across app restarts.
+class NotificationWatcherEnabledNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    final prefs = ref.watch(preferencesServiceProvider);
+    return prefs.getBool(notificationWatcherEnabledPrefKey, defaultValue: false);
+  }
+
+  /// Sets whether the watcher is active and persists the choice.
+  void setEnabled(bool enabled) {
+    state = enabled;
+  }
+
+  /// Supports direct state assignment e.g. `ref.read(...notifier).state = true`.
+  @override
+  set state(bool value) {
+    super.state = value;
+    ref.read(preferencesServiceProvider).setBool(notificationWatcherEnabledPrefKey, value);
+  }
+}
+
+/// Provides the globally enabled state of the notification watcher.
+final notificationWatcherEnabledProvider =
+    NotifierProvider<NotificationWatcherEnabledNotifier, bool>(
+  NotificationWatcherEnabledNotifier.new,
+);
 
 /// State notifier managing which Indonesian banks and e-wallets are watched.
+/// Persisted in [preferencesServiceProvider] so custom selections persist across app restarts.
 class EnabledWatchedAppsNotifier extends Notifier<Set<String>> {
   @override
   Set<String> build() {
+    final prefs = ref.watch(preferencesServiceProvider);
+    final saved = prefs.getStringList(enabledWatchedAppIdsPrefKey);
+    if (saved != null) {
+      return saved.toSet();
+    }
     return {for (final app in WatchedApps.allApps) app.id};
+  }
+
+  void _persist(Set<String> newSet) {
+    state = newSet;
+    ref.read(preferencesServiceProvider).setStringList(
+      enabledWatchedAppIdsPrefKey,
+      newSet.toList(),
+    );
   }
 
   /// Toggles whether institution [appId] is watched.
   void toggle(String appId) {
-    if (state.contains(appId)) {
-      state = Set.of(state)..remove(appId);
+    final updated = Set.of(state);
+    if (updated.contains(appId)) {
+      updated.remove(appId);
     } else {
-      state = Set.of(state)..add(appId);
+      updated.add(appId);
     }
+    _persist(updated);
   }
 
   /// Explicitly sets whether institution [appId] is watched.
   void setEnabled(String appId, bool enabled) {
+    final updated = Set.of(state);
     if (enabled) {
-      if (!state.contains(appId)) {
-        state = Set.of(state)..add(appId);
-      }
+      updated.add(appId);
     } else {
-      if (state.contains(appId)) {
-        state = Set.of(state)..remove(appId);
-      }
+      updated.remove(appId);
     }
+    _persist(updated);
   }
 
   /// Enables all registered banking and e-wallet applications.
   void selectAll() {
-    state = {for (final app in WatchedApps.allApps) app.id};
+    _persist({for (final app in WatchedApps.allApps) app.id});
   }
 
   /// Deselects all applications.
   void deselectAll() {
-    state = const {};
+    _persist(const {});
   }
 }
 
@@ -160,7 +206,7 @@ final notificationAccessPermissionProvider =
 /// Streams incoming notification events from [notificationListenerWrapperProvider]
 /// only when notification watcher is enabled and permission is granted.
 final rawIncomingNotificationsStreamProvider =
-    StreamProvider.autoDispose<ServiceNotificationEvent>((ref) {
+    StreamProvider<ServiceNotificationEvent>((ref) {
   final isEnabled = ref.watch(notificationWatcherEnabledProvider);
   final isGrantedAsync = ref.watch(notificationAccessPermissionProvider);
   final isGranted = isGrantedAsync.valueOrNull ?? false;
@@ -176,7 +222,7 @@ final rawIncomingNotificationsStreamProvider =
 /// Ingests incoming notifications into `notification_logs`, parses them, and emits
 /// [IncomingNotificationPayload] for auto-recording review.
 final processedIncomingNotificationProvider =
-    StreamProvider.autoDispose<IncomingNotificationPayload>((ref) {
+    StreamProvider<IncomingNotificationPayload>((ref) {
   final controller = StreamController<IncomingNotificationPayload>();
   ref.onDispose(controller.close);
 

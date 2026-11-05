@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:budget_tracker/core/services/preferences_service.dart';
 import 'package:budget_tracker/database/app_database.dart';
 import 'package:budget_tracker/database/database_provider.dart';
 import 'package:budget_tracker/features/notification_watcher/constants/watched_apps.dart';
@@ -99,8 +100,10 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          preferencesServiceProvider.overrideWithValue(
+            InMemoryPreferencesService({notificationWatcherEnabledPrefKey: false}),
+          ),
           notificationListenerWrapperProvider.overrideWithValue(mockWrapper),
-          notificationWatcherEnabledProvider.overrideWith((ref) => false),
         ],
       );
       addTearDown(container.dispose);
@@ -136,8 +139,10 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          preferencesServiceProvider.overrideWithValue(
+            InMemoryPreferencesService({notificationWatcherEnabledPrefKey: true}),
+          ),
           notificationListenerWrapperProvider.overrideWithValue(mockWrapper),
-          notificationWatcherEnabledProvider.overrideWith((ref) => true),
         ],
       );
       addTearDown(container.dispose);
@@ -192,9 +197,11 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          preferencesServiceProvider.overrideWithValue(
+            InMemoryPreferencesService({notificationWatcherEnabledPrefKey: true}),
+          ),
           databaseProvider.overrideWithValue(db),
           notificationListenerWrapperProvider.overrideWithValue(mockWrapper),
-          notificationWatcherEnabledProvider.overrideWith((ref) => true),
         ],
       );
       addTearDown(container.dispose);
@@ -246,9 +253,11 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
+          preferencesServiceProvider.overrideWithValue(
+            InMemoryPreferencesService({notificationWatcherEnabledPrefKey: true}),
+          ),
           databaseProvider.overrideWithValue(db),
           notificationListenerWrapperProvider.overrideWithValue(mockWrapper),
-          notificationWatcherEnabledProvider.overrideWith((ref) => true),
         ],
       );
       addTearDown(container.dispose);

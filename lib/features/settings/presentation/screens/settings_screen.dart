@@ -22,6 +22,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen>
     with WidgetsBindingObserver {
+  bool _awaitingAccessPermission = false;
+
   @override
   void initState() {
     super.initState();
@@ -38,7 +40,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(notificationPermissionProvider.notifier).refresh();
-      ref.read(notificationAccessPermissionProvider.notifier).refresh();
+      ref.read(notificationAccessPermissionProvider.notifier).refresh().then((_) {
+        final hasAccess =
+            ref.read(notificationAccessPermissionProvider).valueOrNull ?? false;
+        if (hasAccess && _awaitingAccessPermission) {
+          _awaitingAccessPermission = false;
+          ref.read(notificationWatcherEnabledProvider.notifier).state = true;
+        }
+      });
     }
   }
 
@@ -262,11 +271,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             onChanged: (value) async {
               if (value) {
                 if (!hasNotificationAccess) {
+                  _awaitingAccessPermission = true;
                   await NotificationAccessDialog.show(context);
                 } else {
                   ref.read(notificationWatcherEnabledProvider.notifier).state = true;
                 }
               } else {
+                _awaitingAccessPermission = false;
                 ref.read(notificationWatcherEnabledProvider.notifier).state = false;
               }
             },
@@ -282,11 +293,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             trailing: hasNotificationAccess
                 ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
                 : TextButton(
-                    onPressed: () => NotificationAccessDialog.show(context),
+                    onPressed: () {
+                      _awaitingAccessPermission = true;
+                      NotificationAccessDialog.show(context);
+                    },
                     child: const Text('Grant'),
                   ),
             onTap: !hasNotificationAccess
-                ? () => NotificationAccessDialog.show(context)
+                ? () {
+                    _awaitingAccessPermission = true;
+                    NotificationAccessDialog.show(context);
+                  }
                 : null,
           ),
           const Divider(),

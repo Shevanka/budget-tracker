@@ -485,7 +485,10 @@ class _AddEditTransactionScreenState
           );
         }
         if (result.merchant != null && result.merchant!.isNotEmpty) {
-          _noteController.text = result.merchant!;
+          final summary = result.itemsSummary;
+          _noteController.text = summary.isNotEmpty
+              ? '${result.merchant} ($summary)'
+              : result.merchant!;
         }
         if (result.date != null) {
           _selectedDate = result.date!.toLocal();
