@@ -69,7 +69,10 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
       );
     }
     if (receipt.merchant != null && receipt.merchant!.isNotEmpty) {
-      _merchantController.text = receipt.merchant!;
+      final summary = receipt.itemsSummary;
+      _merchantController.text = summary.isNotEmpty
+          ? '${receipt.merchant} ($summary)'
+          : receipt.merchant!;
     }
     if (receipt.date != null) {
       _selectedDate = receipt.date!.toLocal();
@@ -195,17 +198,23 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
                                   color: Colors.green,
                                 ),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'Teks Berhasil Dikenali',
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
+                                Expanded(
+                                  child: Text(
+                                    'Teks Berhasil Dikenali',
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${receipt.lines.length} baris teks terdeteksi dari OCR ML Kit',
+                              receipt.items.isNotEmpty
+                                  ? '${receipt.items.length} item belanja teridentifikasi'
+                                  : '${receipt.lines.length} baris teks terdeteksi dari OCR ML Kit',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                               ),
@@ -278,6 +287,71 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
+
+                // Itemized products list if available
+                if (receipt.items.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 18,
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Daftar Item Belanja (${receipt.items.length} item)',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ...receipt.items.map((item) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    item.quantity != null
+                                        ? '${item.quantity}x ${item.name}'
+                                        : item.name,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  item.formattedTotalPrice,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 // 4. Category Picker & AI Suggestion Badge
                 CategoryPickerField(
@@ -609,6 +683,8 @@ class _ReceiptReviewScreenState extends ConsumerState<ReceiptReviewScreen> {
       rawText: originalReceipt.rawText,
       imagePath: originalReceipt.imagePath,
       lines: originalReceipt.lines,
+      items: originalReceipt.items,
+      cleanLines: originalReceipt.cleanLines,
     );
 
     if (context.canPop()) {

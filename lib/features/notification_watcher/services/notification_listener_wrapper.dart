@@ -15,6 +15,9 @@ abstract class NotificationListenerWrapper {
 
   /// Streams incoming system notifications posted by external apps.
   Stream<ServiceNotificationEvent> get notificationsStream;
+
+  /// Retrieves active notifications currently sitting in the Android notification drawer.
+  Future<List<ServiceNotificationEvent>> getActiveNotifications();
 }
 
 /// Default implementation of [NotificationListenerWrapper] delegating to [NotificationListenerService].
@@ -51,6 +54,17 @@ class DefaultNotificationListenerWrapper implements NotificationListenerWrapper 
     } catch (e) {
       debugPrint('Failed to access notifications stream: $e');
       return const Stream.empty();
+    }
+  }
+
+  @override
+  Future<List<ServiceNotificationEvent>> getActiveNotifications() async {
+    if (!Platform.isAndroid) return const [];
+    try {
+      return await NotificationListenerService.getActiveNotifications();
+    } catch (e) {
+      debugPrint('Failed to get active notifications: $e');
+      return const [];
     }
   }
 }

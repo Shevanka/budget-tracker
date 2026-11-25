@@ -11,108 +11,242 @@ class NotificationParser {
 
   /// Registry of parser rules for supported Indonesian financial institutions.
   static final List<NotificationParserRule> rules = [
-    // 1. BCA
+    // 1. BCA (BCA Mobile, myBCA, Blu) - Merchant first
     NotificationParserRule(
       source: 'BCA',
       packageNames: WatchedApps.bca.packageNames,
       regex: RegExp(
-        r'(?:Pembelian|Pembayaran(?:\s+QRIS)?)\s+(?:di|ke)\s+(.+?)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)',
+        r'(?:Pembelian|Pembayaran(?:\s+QRIS)?|Transaksi(?:\s+debit)?)\s+(?:di|ke)\s+(.+?)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)',
+        caseSensitive: false,
+      ),
+      merchantGroupIndex: 1,
+      amountGroupIndex: 2,
+    ),
+    // 1b. BCA - Amount first
+    NotificationParserRule(
+      source: 'BCA',
+      packageNames: WatchedApps.bca.packageNames,
+      regex: RegExp(
+        r'(?:Pembelian|Pembayaran(?:\s+QRIS)?|Transaksi(?:\s+debit)?|Transfer\s+keluar).*?(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+(?:berhasil|sukses)|\s*\.$|$)',
+        caseSensitive: false,
+      ),
+      amountGroupIndex: 1,
+      merchantGroupIndex: 2,
+    ),
+
+    // 2. Mandiri (Livin') - Amount first
+    NotificationParserRule(
+      source: 'Mandiri',
+      packageNames: WatchedApps.mandiri.packageNames,
+      regex: RegExp(
+        r'(?:Transaksi\s+debit|Pembayaran(?:\s+QRIS)?|Transfer\s+keluar|Pembelian)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+(?:telah\s+)?(?:berhasil|sukses)|\s*\.$|$)',
+        caseSensitive: false,
+      ),
+      amountGroupIndex: 1,
+      merchantGroupIndex: 2,
+    ),
+    // 2b. Mandiri (Livin') - Merchant first
+    NotificationParserRule(
+      source: 'Mandiri',
+      packageNames: WatchedApps.mandiri.packageNames,
+      regex: RegExp(
+        r'(?:Transaksi\s+debit|Pembayaran(?:\s+QRIS)?|Transfer\s+keluar|Pembelian).*?\s+(?:di|ke)\s+(.+?)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)',
         caseSensitive: false,
       ),
       merchantGroupIndex: 1,
       amountGroupIndex: 2,
     ),
 
-    // 2. Mandiri (Livin')
-    NotificationParserRule(
-      source: 'Mandiri',
-      packageNames: WatchedApps.mandiri.packageNames,
-      regex: RegExp(
-        r'(?:Transaksi\s+debit|Pembayaran(?:\s+QRIS)?|Transfer\s+keluar|Pembelian)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)\s+(?:telah\s+)?(?:berhasil|sukses)',
-        caseSensitive: false,
-      ),
-      amountGroupIndex: 1,
-      merchantGroupIndex: 2,
-    ),
-
-    // 3. BNI (Mobile / wondr)
+    // 3. BNI (Mobile / wondr) - Amount first
     NotificationParserRule(
       source: 'BNI',
       packageNames: WatchedApps.bni.packageNames,
       regex: RegExp(
-        r'(?:Transaksi(?:\s+QRIS)?|Pembelian|Transfer\s+keluar|Pembayaran)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+pada|\s+(?:telah\s+)?(?:berhasil|sukses)|\s*\.$|$)',
+        r'(?:Transaksi(?:\s+QRIS)?|Pembelian|Transfer\s+keluar|Pembayaran)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+pada|\s+(?:telah\s+)?(?:berhasil|sukses)|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
       merchantGroupIndex: 2,
     ),
+    // 3b. BNI (Mobile / wondr) - Merchant first
+    NotificationParserRule(
+      source: 'BNI',
+      packageNames: WatchedApps.bni.packageNames,
+      regex: RegExp(
+        r'(?:Transaksi(?:\s+QRIS)?|Pembelian|Transfer\s+keluar|Pembayaran).*?\s+(?:di|ke)\s+(.+?)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)',
+        caseSensitive: false,
+      ),
+      merchantGroupIndex: 1,
+      amountGroupIndex: 2,
+    ),
 
-    // 4. BTN Mobile
+    // 4. BRI (BRImo) - Amount first
+    NotificationParserRule(
+      source: 'BRI',
+      packageNames: WatchedApps.bri.packageNames,
+      regex: RegExp(
+        r'(?:Transaksi(?:\s+QRIS)?|Debit|Pembayaran|Pembelian|Transfer\s+keluar)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+(?:berhasil|sukses)|\s*\.$|$)',
+        caseSensitive: false,
+      ),
+      amountGroupIndex: 1,
+      merchantGroupIndex: 2,
+    ),
+    // 4b. BRI (BRImo) - Merchant first
+    NotificationParserRule(
+      source: 'BRI',
+      packageNames: WatchedApps.bri.packageNames,
+      regex: RegExp(
+        r'(?:Transaksi(?:\s+QRIS)?|Debit|Pembayaran|Pembelian|Transfer\s+keluar).*?\s+(?:di|ke)\s+(.+?)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)',
+        caseSensitive: false,
+      ),
+      merchantGroupIndex: 1,
+      amountGroupIndex: 2,
+    ),
+
+    // 5. BTN Mobile
     NotificationParserRule(
       source: 'BTN',
       packageNames: WatchedApps.btn.packageNames,
       regex: RegExp(
-        r'(?:Transaksi(?:\s+QRIS)?|Debit(?:\s+rek\s+\d+)?|Pembayaran|Pembelian|Transfer\s+keluar)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+(?:berhasil|sukses)|\s+tgl|\s*\.$|$)',
+        r'(?:Transaksi(?:\s+QRIS)?|Debit(?:\s+rek\s+\d+)?|Pembayaran|Pembelian|Transfer\s+keluar)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+(?:berhasil|sukses)|\s+tgl|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
       merchantGroupIndex: 2,
     ),
 
-    // 5. SeaBank
+    // 6. Bank Jago
+    NotificationParserRule(
+      source: 'Bank Jago',
+      packageNames: WatchedApps.jago.packageNames,
+      regex: RegExp(
+        r'(?:Kamu\s+(?:telah\s+)?(?:membayar|bayar)|Pembayaran(?:\s+QRIS)?|Transaksi\s+keluar).*?(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+(?:berhasil|sukses)|\s*\.$|$)',
+        caseSensitive: false,
+      ),
+      amountGroupIndex: 1,
+      merchantGroupIndex: 2,
+    ),
+    NotificationParserRule(
+      source: 'Bank Jago',
+      packageNames: WatchedApps.jago.packageNames,
+      regex: RegExp(
+        r'(?:Kamu\s+(?:telah\s+)?(?:membayar|bayar)|Pembayaran(?:\s+QRIS)?|Transaksi\s+keluar).*?\s+(?:ke|di)\s+(.+?)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)',
+        caseSensitive: false,
+      ),
+      merchantGroupIndex: 1,
+      amountGroupIndex: 2,
+    ),
+
+    // 7. SeaBank
     NotificationParserRule(
       source: 'SeaBank',
       packageNames: WatchedApps.seaBank.packageNames,
       regex: RegExp(
-        r'(?:Pembayaran(?:\s+QRIS)?|Transfer\s+keluar|Transaksi)\s+(?:sebesar\s+)?Rp\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+(?:telah\s+)?(?:berhasil|sukses)|\s*\.$|$)',
+        r'(?:Pembayaran(?:\s+QRIS)?|Transfer\s+keluar|Transaksi)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+(?:telah\s+)?(?:berhasil|sukses)|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
       merchantGroupIndex: 2,
     ),
 
-    // 6. ShopeePay
+    // 8. ShopeePay - Amount first
     NotificationParserRule(
       source: 'ShopeePay',
       packageNames: WatchedApps.shopeePay.packageNames,
       regex: RegExp(
-        r'(?:Pembayaran(?:\s+QRIS)?(?:\s+sebesar)?|Kamu\s+berhasil\s+membayar|Transaksi\s+berhasil)\s+Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+menggunakan|\s+berhasil|!|\s*\.$|$)',
+        r'(?:Pembayaran(?:\s+QRIS)?(?:\s+sebesar)?|Kamu\s+berhasil\s+membayar|Transaksi\s+berhasil).*?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+menggunakan|\s+berhasil|!|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
       merchantGroupIndex: 2,
     ),
+    // 8b. ShopeePay - Merchant first
+    NotificationParserRule(
+      source: 'ShopeePay',
+      packageNames: WatchedApps.shopeePay.packageNames,
+      regex: RegExp(
+        r'(?:Pembayaran(?:\s+QRIS)?(?:\s+sebesar)?|Kamu\s+berhasil\s+membayar|Transaksi\s+berhasil).*?\s+(?:di|ke)\s+(.+?)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)',
+        caseSensitive: false,
+      ),
+      merchantGroupIndex: 1,
+      amountGroupIndex: 2,
+    ),
 
-    // 7. GoPay
+    // 9. GoPay (Gojek / standalone GoPay) - Amount first
     NotificationParserRule(
       source: 'GoPay',
       packageNames: WatchedApps.goPay.packageNames,
       regex: RegExp(
-        r'(?:Kamu\s+(?:berhasil\s+bayar|telah\s+membayar|bayar)|Pembayaran(?:\s+QRIS)?(?:\s+sebesar)?)\s*Rp\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+pakai|\s+berhasil|\s*\.$|$)',
+        r'(?:Kamu\s+(?:berhasil\s+bayar|telah\s+membayar|bayar)|Pembayaran(?:\s+QRIS)?(?:\s+sebesar)?).*?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+pakai|\s+berhasil|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
       merchantGroupIndex: 2,
     ),
+    // 9b. GoPay - Merchant first
+    NotificationParserRule(
+      source: 'GoPay',
+      packageNames: WatchedApps.goPay.packageNames,
+      regex: RegExp(
+        r'(?:Kamu\s+(?:berhasil\s+bayar|telah\s+membayar|bayar)|Pembayaran(?:\s+QRIS)?(?:\s+sebesar)?).*?\s+(?:ke|di)\s+(.+?)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)',
+        caseSensitive: false,
+      ),
+      merchantGroupIndex: 1,
+      amountGroupIndex: 2,
+    ),
 
-    // 8. OVO
+    // 10. OVO - Amount first
     NotificationParserRule(
       source: 'OVO',
       packageNames: WatchedApps.ovo.packageNames,
       regex: RegExp(
-        r'(?:Transaksi\s+berhasil!\s+)?(?:Pembayaran(?:\s+sebesar)?|Berhasil\s+bayar)\s+Rp\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+berhasil|\s*\.$|$)',
+        r'(?:Transaksi\s+berhasil!\s+)?(?:Pembayaran(?:\s+sebesar)?|Berhasil\s+bayar).*?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:di|ke)\s+(.+?)(?:\s+berhasil|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
       merchantGroupIndex: 2,
     ),
+    // 10b. OVO - Merchant first
+    NotificationParserRule(
+      source: 'OVO',
+      packageNames: WatchedApps.ovo.packageNames,
+      regex: RegExp(
+        r'(?:Transaksi\s+berhasil!\s+)?(?:Pembayaran(?:\s+sebesar)?|Berhasil\s+bayar).*?\s+(?:di|ke)\s+(.+?)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)',
+        caseSensitive: false,
+      ),
+      merchantGroupIndex: 1,
+      amountGroupIndex: 2,
+    ),
 
-    // 9. DANA
+    // 11. DANA - Amount first
     NotificationParserRule(
       source: 'DANA',
       packageNames: WatchedApps.dana.packageNames,
       regex: RegExp(
-        r'(?:Pembayaran\s+berhasil!\s+Kamu\s+telah\s+bayar|Bayar|Pembayaran)\s+Rp\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+berhasil|\s*\.$|$)',
+        r'(?:Pembayaran\s+berhasil!\s+Kamu\s+telah\s+bayar|Bayar|Pembayaran).*?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+berhasil|\s*\.$|$)',
+        caseSensitive: false,
+      ),
+      amountGroupIndex: 1,
+      merchantGroupIndex: 2,
+    ),
+    // 11b. DANA - Merchant first
+    NotificationParserRule(
+      source: 'DANA',
+      packageNames: WatchedApps.dana.packageNames,
+      regex: RegExp(
+        r'(?:Pembayaran\s+berhasil!\s+Kamu\s+telah\s+bayar|Bayar|Pembayaran).*?\s+(?:ke|di)\s+(.+?)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)',
+        caseSensitive: false,
+      ),
+      merchantGroupIndex: 1,
+      amountGroupIndex: 2,
+    ),
+
+    // 12. Flip
+    NotificationParserRule(
+      source: 'Flip',
+      packageNames: WatchedApps.flip.packageNames,
+      regex: RegExp(
+        r'(?:Transaksi\s+transfer|Kirim\s+uang|Transfer)\s+(?:sebesar\s+)?(?:Rp\.?|IDR)\s*([\d.,]+)\s+(?:ke|di)\s+(.+?)(?:\s+berhasil|\s*\.$|$)',
         caseSensitive: false,
       ),
       amountGroupIndex: 1,
@@ -136,7 +270,27 @@ class NotificationParser {
       source: 'Bank / E-Wallet',
       packageNames: const [],
       regex: RegExp(
-        r'(?:pembayaran|transaksi|debit|transfer|bayar|beli|pembelian).*?\s+(?:ke|di)\s+(.+?)\s+(?:sebesar\s+)?(?:rp\.?|idr)\s*([\d.,]+)',
+        r'(?:pembayaran|transaksi|debit|transfer|bayar|beli|pembelian).*?\s+(?:ke|di|pada|untuk)\s+(.+?)\s+(?:sebesar\s+)?(?:rp\.?|idr)\s*([\d.,]+)',
+        caseSensitive: false,
+      ),
+      merchantGroupIndex: 1,
+      amountGroupIndex: 2,
+    ),
+    NotificationParserRule(
+      source: 'Bank / E-Wallet',
+      packageNames: const [],
+      regex: RegExp(
+        r'(?:kamu\s+telah\s+berhasil|berhasil|sukses).*?(?:rp\.?|idr)\s*([\d.,]+).*?(?:di|ke)\s+(.+?)(?:\.|\!|$)',
+        caseSensitive: false,
+      ),
+      amountGroupIndex: 1,
+      merchantGroupIndex: 2,
+    ),
+    NotificationParserRule(
+      source: 'Bank / E-Wallet',
+      packageNames: const [],
+      regex: RegExp(
+        r'(?:kamu\s+telah\s+berhasil|berhasil|sukses).*?(?:di|ke)\s+(.+?).*?(?:rp\.?|idr)\s*([\d.,]+)',
         caseSensitive: false,
       ),
       merchantGroupIndex: 1,
